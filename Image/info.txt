@@ -1,0 +1,26 @@
+Tentang Website
+
+Website ini digunakan untuk membuat, menyimpan, dan mengatur shortcut ke berbagai website agar lebih mudah diakses.
+
+Mode utama:
+
+1. Add Link
+   Membuat shortcut baru. Masukkan link, lalu tambahkan nama atau catatan jika diperlukan. Jika nama dikosongkan, nama akan dibuat otomatis berdasarkan website.
+
+2. Add List
+   Membuat list baru untuk mengelompokkan shortcut sesuai kebutuhan.
+
+3. Search
+   Mencari shortcut berdasarkan nama dari berbagai list.
+
+4. Edit
+   Mengubah link, nama, atau catatan dari shortcut yang sudah dibuat.
+
+Cara menggunakan textbox:
+Tekan Enter atau klik ikon di sebelah kanan textbox. Jika textbox berisi teks, perintah akan dijalankan. Jika kosong, mode akan berpindah ke mode berikutnya.
+
+Fitur lainnya:
+• Import & Export — Memindahkan atau mencadangkan data shortcut.
+• Settings — Mengatur urutan shortcut, list, tampilan, dan beberapa perilaku aplikasi.
+• Favorite — Menyimpan shortcut yang sering digunakan.
+• Drag & Drop — Mengatur urutan shortcut atau memindahkannya ke list lain.
