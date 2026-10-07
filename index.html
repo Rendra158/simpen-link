@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simpen.Link</title>
+
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="layout.css">
+</head>
+
+<body class="page-home">
+  <div id="app-scale">
+
+    <div class="textbox-wrapper mode-link">
+      <div class="textbox-inner">
+        <button type="button" class="copy" aria-label="Salin teks"><img src="Image/copy.svg" alt=""></button>
+        <div class="LV1"></div>
+        <button type="button" class="cancel" aria-label="Hapus teks"><img src="Image/cancel.svg" alt=""></button>
+        <input class="main" type="text" placeholder="Add Shortcut..." aria-label="Input" autofocus>
+        <div class="LV"></div>
+        <div class="mode-icon-box" role="button" aria-label="Ganti mode / kirim">
+          <img class="mode-icon" src="Image/link.svg" alt="">
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="more" aria-label="Menu lainnya"><img src="Image/more.svg" alt=""></button>
+
+    <div class="field a-name-field">
+      <input type="text" class="a-name" placeholder="Add Name..." aria-label="Nama">
+    </div>
+    <div class="field a-note-field">
+      <textarea class="a-note" placeholder="Add Note..." aria-label="Catatan"></textarea>
+    </div>
+
+    <div class="List"></div>
+
+    <div class="bottom-fade"></div>
+    <div class="shortcuts-grid"></div>
+    <input type="file" id="import-file-input" accept="application/json" style="display: none;">
+
+  </div>
+
+  <div class="bar">
+    <div class="bar-group">
+      <button id="more-import" class="bar-item bulk-btn bulk-export">Import</button>
+      <button id="more-settings" class="bar-item bulk-btn bulk-cancel">Settings</button>
+      <button id="more-info" class="bar-item bulk-btn bulk-cancel" aria-label="Info"><img src="Image/info.svg" alt=""></button>
+    </div>
+
+    <div id="bar-lv" class="bar-item LV-bar bar-hide"></div>
+
+    <div class="bar-group">
+      <span id="bulk-count" class="bar-item bar-hide">0 selects</span>
+      <button id="bulk-delete" class="bar-item bar-hide bulk-btn bulk-delete">Delete</button>
+      <button id="bulk-edit" class="bar-item bar-hide bulk-btn bulk-edit" aria-label="Edit"><img src="Image/edit.svg" alt=""></button>
+      <button id="bulk-export" class="bar-item bar-hide bulk-btn bulk-export">Export</button>
+      <button id="bulk-cancel" class="bar-item bar-hide bulk-btn bulk-cancel">X</button>
+    </div>
+  </div>
+
+  <script src="store.js"></script>
+  <script src="data.js"></script>
+  <script src="system.js"></script>
+</body>
+
+</html>

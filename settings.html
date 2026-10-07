@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings</title>
+
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="settings.css">
+  <link rel="stylesheet" href="layout.css">
+</head>
+
+<body class="page-settings">
+  <div class="bar">
+    <button type="button" class="bulk-btn bulk-cancel" id="p-back-btn">←</button>
+    <button type="button" class="bulk-btn bulk-cancel" id="p-info-btn" aria-label="Info"><img src="Image/info.svg" alt=""></button>
+    
+    <div class="LV-bar"></div>
+    <!-- tab dibuat oleh settings.js dari SECTIONS (store.js) -->
+    <div class="settings-sidebar" id="settings-sidebar"></div>
+  </div>
+
+  <div id="app-scale">
+    <!-- isi panel dibuat oleh settings.js dari SETTING_DEFS (store.js) -->
+    <div class="settings-page" id="settings-page"></div>
+  </div>
+
+  <script src="store.js"></script>
+  <script src="settings.js"></script>
+</body>
+
+</html>

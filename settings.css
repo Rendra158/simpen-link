@@ -1,0 +1,96 @@
+/* settings.css — tampilan halaman Settings. Posisi & ukuran: layout.css. Warna dasar & bar: base.css */
+
+/* ===== Tab di bar atas (putih, seperti tombol Settings di halaman utama) ===== */
+.bar > .bulk-btn { flex-shrink: 0; }
+
+.settings-sidebar {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.settings-sidebar::-webkit-scrollbar { display: none; }
+
+.settings-sidebar button {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 8px;
+  background-color: white;
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--c-navy);
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.2);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.settings-sidebar button:active,
+.settings-sidebar button.aktif {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+}
+.settings-sidebar button.aktif {
+  outline: 2px solid var(--c-navy);
+  outline-offset: -2px;
+}
+
+.s-info {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #14181F;
+}
+
+/* ===== Panel isi ===== */
+.settings-page {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.settings-page::-webkit-scrollbar { display: none; }
+
+.s-group { display: none; }
+.s-group.active { display: block; }
+
+.s-field {
+  position: relative;
+  margin: 0 0 20px;
+  padding: 6px 16px;
+  border: 1.5px solid black;
+  border-radius: 10px;
+}
+.s-field legend {
+  padding: 0 6px;
+  font-size: 12px;
+  color: black;
+}
+
+.s-select { position: relative; }
+.s-select select {
+  width: 100%;
+  padding: 6px 26px 8px 0;
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  color: black;
+  cursor: pointer;
+}
+.s-select::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  top: 40%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #333;
+  border-bottom: 2px solid #333;
+  transform: translateY(-50%) rotate(45deg);
+  pointer-events: none;
+}

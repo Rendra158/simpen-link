@@ -1,0 +1,185 @@
+/* layout.css — posisi, ukuran, jarak, dan responsif. Tampilan: base.css / settings.css */
+
+/* ---------- 1. VARIABEL ---------- */
+:root {
+  /* Kolom kiri (dipakai panel hasil pencarian di desktop) */
+  --side-w: clamp(260px, 24vw, 368px);
+
+  /* Grid shortcut (tinggi kartu diatur per jumlah kolom di bagian 2) */
+  --grid-margin: calc(var(--bar-h) + 20px) 30px 0 30px;
+  --grid-pad: 6px 8px 150px;
+  --grid-gap: 16px;
+  --shortcut-h: 90px;
+  --fade-h: 160px;
+
+  --bar-h: 45px;
+
+  /* List kategori */
+  --list-h: 40px;
+  --list-margin: 0 var(--textbox-side);
+  --list-gap: 10px;
+  --list-btn-pad: 6px 14px;
+
+  /* Textbox */
+  --textbox-h: 40px;
+  --textbox-side: 10%;
+  --textbox-bottom: 30px;   /* jarak textbox dari dasar layar (HP menimpa jadi 20px) */
+  --textbox-margin: 0 var(--textbox-side) var(--textbox-bottom);
+  --mode-hit-w: 77px;      /* area klik ikon mode (sampai garis LV) */
+  --mode-icon-left: 25px;
+
+  /* Field Name & Note */
+  --field-pad: 0 10px;
+  --field-gap: 12px;       /* jarak field ke textbox, ubah sesuai selera */
+  --field-bottom: calc(var(--textbox-bottom) + var(--textbox-h) + var(--field-gap));
+  --field-w: calc((100% - 2 * var(--textbox-side) - 10px) / 2);
+  --field-name-left: var(--textbox-side);
+  --field-note-right: var(--textbox-side);
+  --field-note-h: 80px;
+
+  /* Halaman Settings (satu tata letak untuk semua layar) */
+  --set-page-top: calc(var(--bar-h) + 20px);
+  --set-page-bottom: 20px;
+  --set-page-w: 90%;          /* lebar isi = 90% layar */
+  --set-page-pad: 12px 4px;
+
+}
+
+/* ---------- 2. DASAR (semua layar) ---------- */
+html, body { height: 100%; margin: 0; }
+
+#app-scale {
+  position: relative;
+  width: 100%;
+  height: 100vh;   /* cadangan untuk browser lama */
+  height: 100dvh;  /* tinggi area terlihat (bar alamat HP tidak menutupi) */
+}
+
+.bottom-fade { position: absolute; left: 0; right: 0; bottom: 0; height: var(--fade-h); }
+
+.field { position: absolute; margin: 0; padding: var(--field-pad); }
+.a-note-field { height: var(--field-note-h); }
+
+.List { height: var(--list-h); gap: var(--list-gap); }
+.List.List-hidden { height: 0; }
+.List button { padding: var(--list-btn-pad); }
+
+.textbox-wrapper { height: var(--textbox-h); }
+.textbox-inner { padding: 0 var(--mode-hit-w) 0 16px; }
+.mode-icon-box {
+  position: absolute; top: 0; bottom: 0; right: 0;
+  width: var(--mode-hit-w); padding-right: var(--mode-icon-left);
+  justify-content: flex-end;
+}
+
+/* Grid: jumlah kolom dan ukuran kartu ditentukan atribut data-cols (diisi JS dari Settings) */
+.shortcuts-grid { gap: var(--grid-gap); grid-template-columns: repeat(var(--cols, 3), 1fr); }
+.shortcuts-grid[data-cols="1"] { --cols: 1; --shortcut-h: 105px; }
+.shortcuts-grid[data-cols="2"] { --cols: 2; --shortcut-h: 100px; }
+.shortcuts-grid[data-cols="3"] { --cols: 3; --shortcut-h: 90px; }
+.shortcuts-grid[data-cols="4"] { --cols: 4; --shortcut-h: 80px; }
+
+.shortcut-box {
+  width: 100%;
+  height: var(--shortcut-h);
+  padding: calc(var(--shortcut-h) * 0.2) calc(var(--shortcut-h) * 0.22);
+}
+.shortcut-box.note-open { grid-column: span 2; }
+.shortcuts-grid[data-cols="1"] .shortcut-box.note-open { grid-column: span 1; }
+
+/* Halaman Settings: tab di dalam bar atas, isi di tengah */
+.settings-sidebar { min-width: 0; padding: 4px 2px; gap: 8px; }
+
+.settings-page {
+  position: absolute;
+  top: var(--set-page-top, calc(var(--bar-h) + 20px));
+  bottom: var(--set-page-bottom, 20px);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: var(--set-page-w, 90%);
+  padding: var(--set-page-pad, 12px 4px);
+}
+
+/* Bar Settings: tab tetap di tengah, tombol Kembali menempel di kiri */
+.page-settings .bar { padding: 0 64px; }
+.bar > #p-back-btn {
+  position: absolute;
+  left: 10px;
+  top: 0;
+  bottom: 0;
+  margin: auto 0;
+  height: fit-content;
+}
+
+/* ---------- 3. DESKTOP (> 768px) ---------- */
+@media (min-width: 769px) {
+  .page-home #app-scale {
+    display: grid;
+    grid-template-columns: var(--side-w) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "grid    grid"
+      "list    list"
+      "textbox textbox";
+  }
+
+  .shortcuts-grid { grid-area: 1 / 1 / -1 / -1; margin: var(--grid-margin); padding: var(--grid-pad); }
+  .List { grid-area: list; margin: var(--list-margin); }
+  .textbox-wrapper { grid-area: textbox; margin: var(--textbox-margin); }
+
+  .field { grid-area: textbox; top: auto; bottom: var(--field-bottom); width: var(--field-w); }
+  .a-name-field { left: var(--field-name-left); }
+  .a-note-field { right: var(--field-note-right); }
+}
+
+/* ---------- 4. HP (<= 768px) ---------- */
+@media (max-width: 768px) {
+  :root {
+    --m-list-bottom: 65px;
+
+    --m-grid-top: calc(var(--bar-h) + 16px);
+    --m-grid-right: 20px;
+    --m-grid-bottom: 0px;
+    --m-grid-pad-bottom: 130px;
+    --m-grid-left: 20px;
+    --fade-h: 150px;
+
+    --textbox-bottom: 20px;   /* --field-bottom ikut dihitung ulang otomatis */
+  }
+
+  /* List & textbox: 70% lebar layar, di tengah (15% kiri + 15% kanan) */
+  .List {
+    position: absolute;
+    left: var(--textbox-side);
+    right: var(--textbox-side);
+    bottom: var(--m-list-bottom);
+  }
+
+  .textbox-wrapper {
+    position: absolute;
+    left: var(--textbox-side);
+    right: var(--textbox-side);
+    bottom: var(--textbox-bottom);
+    z-index: 95;
+  }
+
+  /* Grid mulai di bawah bar atas */
+  .shortcuts-grid {
+    position: absolute;
+    top: var(--m-grid-top);
+    right: var(--m-grid-right);
+    bottom: var(--m-grid-bottom);
+    left: var(--m-grid-left);
+    padding: 0 0 var(--m-grid-pad-bottom);
+  }
+  /* di layar sempit, 3 dan 4 kolom dibatasi jadi 2 supaya kartu tetap terbaca */
+  .shortcuts-grid[data-cols="3"], .shortcuts-grid[data-cols="4"] { --cols: 2; }
+
+  /* Name & Note berdampingan, sejajar dengan textbox (70%) */
+  .field { display: none; bottom: var(--field-bottom); width: var(--field-w); }
+  .field.visible { display: block; z-index: 94; }
+  .a-name-field { left: var(--field-name-left); }
+  .a-note-field { right: var(--field-note-right); }
+
+}
