@@ -1,0 +1,41 @@
+/* spotlight.css — panduan singkat (tour). */
+.sp-blocker {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: transparent;   /* menangkap klik supaya halaman di bawah tidak ikut terpencet */
+}
+
+.sp-spot {
+  position: fixed;
+  z-index: 1001;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(18, 58, 99, 0.75);   /* area gelap di luar sorotan */
+  outline: 2px solid #ffffff;
+  pointer-events: none;
+  transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease;
+}
+
+.sp-tip {
+  position: fixed;
+  z-index: 1002;
+  width: min(320px, calc(100vw - 20px));
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 6px 0 var(--c-navy), 0 10px 18px rgba(18, 58, 99, 0.25);
+  color: var(--c-ink);
+}
+
+.sp-title { margin: 0 0 6px; font-size: 15px; font-weight: bold; color: var(--c-navy); }
+.sp-text  { margin: 0; font-size: 13px; line-height: 1.5; white-space: pre-line; }
+
+.sp-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.sp-count { margin-right: auto; font-size: 12px; color: var(--c-muted); }
+.sp-foot .bulk-btn { padding: 6px 12px; }
+.sp-foot .sp-skip { background: none; box-shadow: none; color: var(--c-muted); font-weight: normal; }

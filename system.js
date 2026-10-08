@@ -747,7 +747,7 @@ importInput.addEventListener("change", async () => {
     }
 });
 moreSettingsBtn.addEventListener("click", () => { window.location.href = "settings.html"; });
-moreInfoBtn.addEventListener("click", () => { window.location.href = "settings.html#info"; });
+moreInfoBtn.addEventListener("click", () => startSpotlight());
 
 /* ---------- sinkron dengan tab lain / halaman Settings ---------- */
 function syncFromStorage() {
@@ -1022,3 +1022,4 @@ setMode(0);
         if (held || Date.now() < suppressUntil) { e.preventDefault(); e.stopImmediatePropagation(); }
     }, true);
 })();
+
