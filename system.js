@@ -23,7 +23,8 @@ const moreImportBtn = document.querySelector("#more-import");
 const moreSettingsBtn = document.querySelector("#more-settings");
 const moreInfoBtn = document.querySelector("#more-info");
 const showBar = (el, on) => el.classList.toggle("bar-hide", !on);
-const barLV = document.querySelector("#bar-lv");
+const barHome = document.querySelector("#bar-home");
+const barSelect = document.querySelector("#bar-select");
 
 const NO_LOGO = "Image/no-logo.svg";
 let modeIndex = 0;
@@ -175,8 +176,8 @@ function updateSelectionUI() {
 
     showBar(bulkCount, hasAny);
     showBar(bulkCancelBtn, hasAny);
-    showBar(barLV, hasAny); 
-    showBar(moreInfoBtn, !hasAny);
+    showBar(barHome, !hasAny);
+    showBar(barSelect, hasAny);
     bulkCount.textContent = `${selectedShortcuts.size + selectedLists.size} selects`;
     
     // list default (Favorite) tidak bisa dihapus, jadi tombol Delete disembunyikan kalau hanya itu yang dipilih
@@ -737,11 +738,15 @@ importInput.addEventListener("change", async () => {
     importInput.value = "";
     if (!file) return;
     try {
-        const res = importLists(JSON.parse(await file.text()));
-        if (!res) { alert("File tidak valid."); return; }
+        const text = await file.text();
+        const isHtml = /\.html?$/i.test(file.name) || /^\s*<(!doctype|html|dl)/i.test(text);
+        const data = isHtml ? parseBookmarksHtml(text) : JSON.parse(text);
+        const res = importLists(data);
+        if (!res) { alert(isHtml ? "Tidak ada bookmark di file ini." : "File tidak valid."); return; }
+        const total = Object.values(data).reduce((n, a) => n + a.length, 0) - res.skipped;
         renderLists();
         renderShortcuts();
-        alert(`${res.count} list diimpor.` + (res.skipped ? ` ${res.skipped} shortcut dilewati (URL tidak valid).` : ""));
+        alert(`${total} link dari ${res.count} list diimpor.` + (res.skipped ? ` ${res.skipped} dilewati (URL tidak valid).` : ""));
     } catch {
         alert("File tidak valid.");
     }

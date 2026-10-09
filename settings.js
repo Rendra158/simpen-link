@@ -5,15 +5,16 @@ const page = document.querySelector("#settings-page");
 const infoBtn = document.querySelector("#p-info-btn");
 
 function makeField(def) {
-  const select = h("select", { id: `p-${def.key}` },
+  const id = `p-${def.key}`;
+  const select = h("select", { id },
     ...def.options.map(([value, label]) => h("option", { value, text: label })));
   select.value = settings[def.key];
   select.addEventListener("change", () => {
     settings[def.key] = select.value;
     saveSettings();
   });
-  return h("fieldset", { class: "s-field" },
-    h("legend", { text: def.label }),
+  return h("div", { class: "s-row" },
+    h("label", { class: "s-label", for: id, text: def.label }),
     h("div", { class: "s-select" }, select));
 }
 
@@ -30,7 +31,8 @@ SECTIONS.forEach((s) => {
   sidebar.append(btn);
 
   page.append(h("div", { class: "s-group", "data-section": s.id },
-    ...SETTING_DEFS.filter((d) => d.section === s.id).map(makeField)));
+  h("div", { class: "s-list" },
+    ...SETTING_DEFS.filter((d) => d.section === s.id).map(makeField))));
 });
 
 /* panel info (dari info.txt) */

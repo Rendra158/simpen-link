@@ -248,3 +248,33 @@ function importLists(obj) {
 }
 
 ensureCurrent();
+
+/* ---------- import bookmark browser (bookmarks.html) ---------- */
+// Folder jadi list ("Induk / Anak" kalau bersarang), link jadi shortcut.
+function parseBookmarksHtml(text) {
+    const doc = new DOMParser().parseFromString(text, "text/html");
+    const folderName = (dl) => {
+        const prev = dl.previousElementSibling;
+        const h3 = prev?.tagName === "H3" ? prev : dl.parentElement?.querySelector(":scope > h3");
+        return h3 ? h3.textContent.trim() : "";
+    };
+    const pathOf = (a) => {
+        const names = [];
+        for (let dl = a.closest("dl"); dl; dl = dl.parentElement?.closest("dl")) {
+            const n = folderName(dl);
+            if (n) names.unshift(n);
+        }
+        return names.join(" / ") || "Bookmark";
+    };
+    const out = {};
+    doc.querySelectorAll("a[href]").forEach((a) => {
+        const date = Number(a.getAttribute("add_date"));
+        (out[pathOf(a)] ||= []).push({
+            name: a.textContent.trim(),
+            url: a.getAttribute("href"),
+            note: "",
+            added: date > 0 ? date * 1000 : Date.now(),
+        });
+    });
+    return out;
+}

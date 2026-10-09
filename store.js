@@ -25,6 +25,8 @@ const SETTING_DEFS = [
   { key: "confirmDelete", section: "list", label: "Konfirmasi Penghapusan", def: "on", options: ON_OFF },
   { key: "gridCols", section: "tampilan", label: "Kolom Grid", def: "3",
     options: [1, 2, 3, 4].map((n) => [String(n), `${n} Kolom`]) },
+    { key: "theme", section: "tampilan", label: "Tema", def: "auto",
+  options: [["auto", "Otomatis (ikut perangkat)"], ["light", "Terang"], ["dark", "Gelap"]] },
 ];
 
 /* ---------- helper ---------- */
@@ -79,7 +81,15 @@ function loadSettings() {
 
 let settings = loadSettings();
 
+function applyTheme() {
+    const t = settings.theme;
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+    else delete document.documentElement.dataset.theme;
+}
+applyTheme();
+
 function saveSettings() {
+  applyTheme();
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   } catch {

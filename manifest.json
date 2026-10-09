@@ -1,0 +1,16 @@
+{
+  "name": "Simpen.Link",
+  "short_name": "Simpen.Link",
+  "description": "Buat, simpan, dan atur shortcut ke berbagai website.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F8F5E9",
+  "theme_color": "#7fb3ff",
+  "lang": "id",
+  "icons": [
+    { "src": "Image/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "Image/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "Image/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
