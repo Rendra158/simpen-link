@@ -22,13 +22,25 @@
   width: min(320px, calc(100vw - 20px));
   padding: 14px 16px;
   border-radius: 14px;
-  background: #ffffff;
+  background: var(--c-surface);
   box-shadow: 0 6px 0 var(--c-navy), 0 10px 18px rgba(18, 58, 99, 0.25);
   color: var(--c-ink);
 }
 
-.sp-title { margin: 0 0 6px; font-size: 15px; font-weight: bold; color: var(--c-navy); }
-.sp-text  { margin: 0; font-size: 13px; line-height: 1.5; white-space: pre-line; }
+.sp-title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: bold;
+  color: var(--c-heading);
+}
+
+.sp-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-line;
+  color: var(--c-ink);
+}
 
 .sp-foot {
   display: flex;
@@ -36,6 +48,18 @@
   gap: 8px;
   margin-top: 12px;
 }
-.sp-count { margin-right: auto; font-size: 12px; color: var(--c-muted); }
+
+.sp-count {
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--c-muted);
+}
+
 .sp-foot .bulk-btn { padding: 6px 12px; }
-.sp-foot .sp-skip { background: none; box-shadow: none; color: var(--c-muted); font-weight: normal; }
+
+.sp-foot .sp-skip {
+  background: none;
+  box-shadow: none;
+  color: var(--c-muted);
+  font-weight: normal;
+}
