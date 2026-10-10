@@ -1,0 +1,82 @@
+[
+  {
+    "name": "Claude",
+    "url": "https://claude.ai",
+    "note": "AI untuk menulis, analisis, dan coding."
+  },
+  {
+    "name": "ChatGPT",
+    "url": "https://chatgpt.com",
+    "note": "AI untuk belajar, menulis, dan berbagai tugas."
+  },
+  {
+    "name": "Gemini",
+    "url": "https://gemini.google.com",
+    "note": "AI Google untuk riset dan produktivitas."
+  },
+  {
+    "name": "Perplexity",
+    "url": "https://www.perplexity.ai",
+    "note": "Mesin pencari AI dengan referensi sumber."
+  },
+  {
+    "name": "TinyWow",
+    "url": "https://tinywow.com",
+    "note": "Alat online untuk PDF, gambar, dan dokumen."
+  },
+  {
+    "name": "NotebookLM",
+    "url": "https://notebooklm.google.com",
+    "note": "AI untuk merangkum dan memahami sumber belajar."
+  },
+  {
+    "name": "WAN",
+    "url": "https://wan.video",
+    "note": "AI untuk membuat video dari teks dan gambar."
+  },
+  {
+    "name": "POKI",
+    "url": "https://poki.com",
+    "note": "Platform game online gratis."
+  },
+  {
+    "name": "Canva",
+    "url": "https://www.canva.com",
+    "note": "Membuat desain grafis dan presentasi."
+  },
+  {
+    "name": "Figma",
+    "url": "https://www.figma.com",
+    "note": "Mendesain UI/UX dan prototipe aplikasi."
+  },
+  {
+    "name": "Google Fonts",
+    "url": "https://fonts.google.com",
+    "note": "Koleksi font gratis untuk desain dan website."
+  },
+  {
+    "name": "Obsidian",
+    "url": "https://obsidian.md",
+    "note": "Mencatat dan menghubungkan ide atau pengetahuan."
+  },
+  {
+    "name": "YouTube",
+    "url": "https://www.youtube.com",
+    "note": "Menonton video, tutorial, dan konten edukasi."
+  },
+  {
+    "name": "iLovePDF",
+    "url": "https://www.ilovepdf.com",
+    "note": "Mengedit, menggabungkan, dan mengonversi PDF."
+  },
+  {
+    "name": "GitHub",
+    "url": "https://github.com",
+    "note": "Menyimpan kode dan mengelola proyek pemrograman."
+  },
+  {
+    "name": "Chrome Web Store",
+    "url": "https://chromewebstore.google.com",
+    "note": "Menemukan ekstensi dan tema Google Chrome."
+  }
+]

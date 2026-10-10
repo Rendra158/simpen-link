@@ -21,6 +21,7 @@ const bulkExportBtn = document.querySelector("#bulk-export");
 const bulkCancelBtn = document.querySelector("#bulk-cancel");
 const moreImportBtn = document.querySelector("#more-import");
 const moreSettingsBtn = document.querySelector("#more-settings");
+const moreCountBtn = document.querySelector("#more-count");
 const moreInfoBtn = document.querySelector("#more-info");
 const showBar = (el, on) => el.classList.toggle("bar-hide", !on);
 const barHome = document.querySelector("#bar-home");
@@ -412,12 +413,55 @@ function renderSearch() {
         : [h("div", { class: "shortcuts-empty", text: "Tidak ada yang cocok." })]));
 }
 
+/* ---------- Home: judul + shortcut (kiri) + rekomendasi (kanan) ---------- */
+let recoItems = [];
+fetch("recommend.json", { cache: "no-cache" })
+    .then((r) => (r.ok ? r.json() : []))
+    .then((a) => {
+        recoItems = (Array.isArray(a) ? a : []).map(cleanItem).filter(Boolean);
+        if (mode().id !== "search") renderShortcuts();
+    })
+    .catch(() => {});
+
+function recoCards() {
+    const shown = recoItems.filter((r) => !hasDuplicate(currentId, r.url));   // yang sudah ada di Home disembunyikan
+    if (!shown.length) return [h("div", { class: "shortcuts-empty", text: "Belum ada rekomendasi." })];
+    return shown.map((item) => {
+        const card = makeCard({ ...item, note: "" }, "reco");
+        card.classList.add("reco");
+        card.draggable = false;
+        const add = h("button", { class: "reco-add", type: "button", title: "Tambah ke Home", "aria-label": "Tambah ke Home", text: "+" });
+        add.addEventListener("click", () => {
+            addShortcut(currentId, { name: item.name, url: item.url, note: item.note });
+            renderShortcuts();
+        });
+        card.append(add);
+        return card;
+    });
+}
+
+function homeView(cards) {
+    const total = lists.reduce((n, l) => n + l.items.length, 0);   // total semua list
+    return [
+        h("div", { class: "home-head" },
+            h("h1", { class: "home-title", text: "Simpen.Link" }),
+            h("p", { class: "home-sub", text: `Kau memiliki ${total} shortcut saat ini` })),
+        h("div", { class: "home-body" },
+            h("div", { class: "home-left" }, ...cards),
+            h("div", { class: "home-lv" }),
+            h("div", { class: "home-reco" }, h("div", { class: "home-reco-title", text: "Rekomendasi" }), ...recoCards())),
+    ];
+}
+
 function renderShortcuts() {
+    updateCount();   // dari bagian no. 3
     if (mode().id === "search") { renderSearch(); updateSelectionUI(); return; }
-    const rows = sortItems(findList(currentId).items.map((item) => ({ item })));
-    gridEl.replaceChildren(...(rows.length
+    const list = findList(currentId);
+    const rows = sortItems(list.items.map((item) => ({ item })));
+    const cards = rows.length
         ? rows.map(({ item }) => makeCard(item, currentId))
-        : [h("div", { class: "shortcuts-empty", text: "Belum ada shortcut." })]));
+        : [h("div", { class: "shortcuts-empty", text: "Belum ada shortcut." })];
+    gridEl.replaceChildren(...(list.isDefault ? homeView(cards) : cards));
     updateSelectionUI();
 }
 
@@ -507,7 +551,7 @@ listEl.addEventListener("wheel", (e) => {
 }, { passive: false });
 
 /* ---------- kartu shortcut ---------- */
-const cardOf = (e) => e.target.closest?.(".shortcut-box");
+const cardOf = (e) => e.target.closest?.(".shortcut-box:not(.reco)");
 
 let openTimer = null;
 gridEl.addEventListener("click", (e) => {
@@ -755,6 +799,16 @@ importInput.addEventListener("change", async () => {
 moreSettingsBtn.addEventListener("click", () => { window.location.href = "settings.html"; });
 moreInfoBtn.addEventListener("click", () => startSpotlight());
 
+function updateCount() {
+    moreCountBtn.textContent = findList(currentId).items.length;
+}
+moreCountBtn.addEventListener("click", () => {
+    if (!mode().editable) return;   // mode search: tanpa seleksi
+    selectedLists.clear();
+    findList(currentId).items.forEach((i) => selectedShortcuts.add(i.id));
+    updateSelectionUI();            // bar otomatis pindah ke grup seleksi
+});
+
 /* ---------- sinkron dengan tab lain / halaman Settings ---------- */
 function syncFromStorage() {
     reloadState();
@@ -944,7 +998,7 @@ setMode(0);
         touching = true;
         held = false;
         moved = false;
-        const el = e.target.closest?.(`${SEL_LIST}, .shortcut-box`);
+        const el = e.target.closest?.(`${SEL_LIST}, .shortcut-box:not(.reco)`);
         if (e.touches.length !== 1 || !el || !mode().editable || e.target.closest(".note-toggle, .rename-input, .list-tag")) return;
         startPt = { x: e.touches[0].clientX, y: e.touches[0].clientY };
         pending = { kind: el.matches(".shortcut-box") ? "item" : "list", el };

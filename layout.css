@@ -183,3 +183,36 @@ html, body { height: 100%; margin: 0; }
   .a-note-field { right: var(--field-note-right); }
 
 }
+
+/* ---------- Home ---------- */
+.home-head { grid-column: 1 / -1; padding: 8px 0 20px; text-align: center; }
+.home-title { margin: 0; font-size: clamp(28px, 5vw, 44px); color: var(--c-heading); }
+.home-sub { margin: 6px 0 0; font-size: 14px; color: var(--c-muted); }
+
+.home-body {
+  --shortcut-h: 90px;                 /* tetap, tidak ikut pengaturan kolom grid */
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 2fr 2px 1fr; /* kiri 2 kolom, garis, kanan 1 kolom */
+  gap: 16px;
+}
+.home-left, .home-reco { display: grid; align-content: start; gap: var(--grid-gap); min-width: 0; }
+.home-left { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.home-reco { grid-template-columns: minmax(0, 1fr); }
+.home-reco-title { font-size: 13px; font-weight: bold; color: var(--c-muted); }
+.home-lv { background: var(--c-ink); opacity: 0.5; }
+.shortcuts-grid[data-cols] .home-left .shortcut-box.note-open { grid-column: span 2; }
+
+.reco-add {
+  position: absolute; top: 6px; right: 6px; z-index: 3;
+  width: 24px; height: 24px; padding: 0;
+  border: none; border-radius: 50%;
+  background: var(--c-green); color: var(--c-navy);
+  font-weight: bold; cursor: pointer;
+}
+
+/* opsional: di HP kiri-kanan terlalu sempit, jadi ditumpuk. Hapus kalau mau tetap berdampingan */
+@media (max-width: 768px) {
+  .home-body { grid-template-columns: 1fr; }
+  .home-lv { width: auto; height: 2px; }
+}

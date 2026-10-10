@@ -46,10 +46,11 @@ function cleanItem(r) {
 }
 function cleanList(r) {
     if (!r || typeof r.name !== "string" || !Array.isArray(r.items)) return null;
+    const isDefault = r.isDefault === true;
     return {
         id: typeof r.id === "string" ? r.id : uid(),
-        name: r.name,
-        isDefault: r.isDefault === true,
+        name: isDefault ? "Home" : r.name,
+        isDefault,
         items: r.items.map(cleanItem).filter(Boolean),
     };
 }
@@ -60,10 +61,10 @@ function migrateOld() {
     const order = readJSON("ShortcutOrder");
     if (!old || typeof old !== "object" || Array.isArray(old)) return [];
     const keys = Object.keys(old);
-    const names = ["Favorite", ...(Array.isArray(order) ? order : []), ...keys]
+    const names = ["Home", ...(Array.isArray(order) ? order : []), ...keys]
         .filter((n, i, a) => keys.includes(n) && a.indexOf(n) === i);
     return names
-        .map((n) => cleanList({ name: n, isDefault: n === "Favorite", items: old[n] }))
+        .map((n) => cleanList({ name: n, isDefault: n === "Home", items: old[n] }))
         .filter(Boolean);
 }
 // Kalau data tersimpan rusak, salin dulu ke kunci cadangan supaya tidak hilang saat ditimpa.
@@ -78,7 +79,7 @@ function loadLists() {
     if (!Array.isArray(saved)) backupBroken();
     const result = Array.isArray(saved) ? saved.map(cleanList).filter(Boolean) : migrateOld();
     if (!result.some((l) => l.isDefault)) {
-        result.unshift({ id: uid(), name: "Favorite", isDefault: true, items: [] });
+        result.unshift({ id: uid(), name: "Home", isDefault: true, items: [] });
     }
     return result;
 }

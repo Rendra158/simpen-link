@@ -9,7 +9,7 @@ const TOUR_STEPS = [
   { target: ".mode-icon-box", title: "Ganti Mode",
     text: "Klik ikon ini. Jika textbox berisi teks, perintah dijalankan. Jika kosong, mode berpindah (bisa juga dengan tombol ← →):\n• Add Link: buat shortcut. Nama & catatan boleh dikosongkan, nama dibuat otomatis dari website.\n• Add List: buat list baru.\n• Search: cari shortcut dari semua list." },
   { target: ".List", title: "List",
-    text: "Kelompokkan shortcut ke dalam list. Favorite untuk yang sering dipakai.\nDobel-klik list untuk ganti nama. Seret untuk mengatur urutan." },
+    text: "Kelompokkan shortcut ke dalam list. Home untuk yang sering dipakai.\n..."},
   { target: ".shortcuts-grid", title: "Shortcut",
     text: "Klik untuk membuka, dobel-klik untuk menyalin link.\nKlik kanan (di HP: tahan) untuk memilih. Dobel klik kanan untuk mengedit.\nSeret (drag & drop) untuk mengubah urutan atau memindahkan ke list lain." },
   { target: ".bar .bar-group", title: "Import, Settings & Info",
