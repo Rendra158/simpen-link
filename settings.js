@@ -120,7 +120,7 @@ const infoGroup = h("div", { class: "s-group s-info", "data-section": "info" });
 page.append(infoGroup);
 infoBtn.addEventListener("click", () => setActiveSection("info"));
 
-fetch("image/info.txt", { cache: "no-cache" })
+fetch("Image/info.txt", { cache: "no-cache" })
   .then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); })
   .then((t) => { infoGroup.textContent = t; })
   .catch(() => { infoGroup.textContent = "Info gagal dimuat."; });
