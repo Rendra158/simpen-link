@@ -7,6 +7,7 @@ const SECTIONS = [
   { id: "shortcut", label: "Shortcut" },
   { id: "list", label: "List" },
   { id: "tampilan", label: "Tampilan" },
+  { id: "advanced", label: "Advanced" },
 ];
 
 // Halaman Settings dibuat dari daftar ini. Tambah setting = tambah satu baris.
@@ -25,8 +26,8 @@ const SETTING_DEFS = [
   { key: "confirmDelete", section: "list", label: "Konfirmasi Penghapusan", def: "on", options: ON_OFF },
   { key: "gridCols", section: "tampilan", label: "Kolom Grid", def: "3",
     options: [1, 2, 3, 4].map((n) => [String(n), `${n} Kolom`]) },
-    { key: "theme", section: "tampilan", label: "Tema", def: "auto",
-  options: [["auto", "Otomatis (ikut perangkat)"], ["light", "Terang"], ["dark", "Gelap"]] },
+  { key: "theme", section: "tampilan", label: "Tema", def: "auto",
+    options: [["auto", "Otomatis (ikut perangkat)"], ["light", "Terang"], ["dark", "Gelap"]] },
 ];
 
 /* ---------- helper ---------- */

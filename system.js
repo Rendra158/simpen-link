@@ -740,7 +740,8 @@ importInput.addEventListener("change", async () => {
     try {
         const text = await file.text();
         const isHtml = /\.html?$/i.test(file.name) || /^\s*<(!doctype|html|dl)/i.test(text);
-        const data = isHtml ? parseBookmarksHtml(text) : JSON.parse(text);
+        let data = isHtml ? parseBookmarksHtml(text) : JSON.parse(text);
+        if (data?.app === "simpen.link" && data.lists) data = data.lists;   // file backup penuh: ambil bagian list-nya
         const res = importLists(data);
         if (!res) { alert(isHtml ? "Tidak ada bookmark di file ini." : "File tidak valid."); return; }
         const total = Object.values(data).reduce((n, a) => n + a.length, 0) - res.skipped;
