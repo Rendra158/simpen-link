@@ -1,26 +1,135 @@
-Tentang Website
+Tentang Simpen.Link
 
-Website ini digunakan untuk membuat, menyimpan, dan mengatur shortcut ke berbagai website agar lebih mudah diakses.
+Simpen.Link adalah website untuk membuat, menyimpan, dan mengatur shortcut ke berbagai website agar mudah diakses. Semua data tersimpan di perangkatmu sendiri (di browser), tidak perlu akun. Website juga bisa dipasang seperti aplikasi dan tetap bisa dibuka saat offline.
 
-Mode utama:
 
-1. Add Link
-   Membuat shortcut baru. Masukkan link, lalu tambahkan nama atau catatan jika diperlukan. Jika nama dikosongkan, nama akan dibuat otomatis berdasarkan website.
+1. TEXTBOX (pusat semua perintah)
 
-2. Add List
-   Membuat list baru untuk mengelompokkan shortcut sesuai kebutuhan.
+Textbox ada di bagian bawah layar. Ketik sesuatu lalu tekan Enter atau klik ikon di sisi kanan textbox. Isinya diproses sesuai mode yang aktif. Warna dan ikon textbox berubah mengikuti mode.
 
-3. Search
-   Mencari shortcut berdasarkan nama dari berbagai list.
+Jika textbox kosong, klik ikon (atau tekan tombol panah kiri / kanan) untuk berpindah mode.
 
-4. Edit
-   Mengubah link, nama, atau catatan dari shortcut yang sudah dibuat.
+Mode yang tersedia:
 
-Cara menggunakan textbox:
-Tekan Enter atau klik ikon di sebelah kanan textbox. Jika textbox berisi teks, perintah akan dijalankan. Jika kosong, mode akan berpindah ke mode berikutnya.
+• Add Link (biru)
+  Membuat shortcut baru. Ketik atau tempel link, misalnya youtube.com. Awalan https:// boleh dikosongkan. Kolom Name dan Note boleh dikosongkan. Jika Name kosong, nama dibuat otomatis dari website. Shortcut masuk ke list yang sedang dipilih.
 
-Fitur lainnya:
-• Import & Export — Memindahkan atau mencadangkan data shortcut.
-• Settings — Mengatur urutan shortcut, list, tampilan, dan beberapa perilaku aplikasi.
-• Favorite — Menyimpan shortcut yang sering digunakan.
-• Drag & Drop — Mengatur urutan shortcut atau memindahkannya ke list lain.
+• Add List (oranye)
+  Membuat list baru. Nama list tidak boleh sama dengan list lain.
+
+• Search (hijau)
+  Mencari shortcut berdasarkan nama dari semua list. Setiap hasil punya pita kecil di atas kartu yang menunjukkan asal list-nya. Klik pita itu untuk pindah ke list tersebut.
+
+• Edit (ungu)
+  Mengubah link, nama, atau catatan dari shortcut yang sudah dibuat. Di mode ini ada tombol Salin untuk menyalin isi textbox.
+
+Tombol X di textbox menghapus teks yang sedang diketik.
+
+Kolom tambahan:
+• Name  — nama shortcut.
+• Note  — catatan pendek. Kolom ini muncul di atas textbox saat dibutuhkan.
+
+
+2. LIST
+
+List adalah kelompok shortcut, tampil sebagai deretan tombol di atas textbox.
+
+• Home adalah list bawaan untuk shortcut yang paling sering dipakai. Home tidak bisa dihapus atau diganti namanya, dan selalu berada paling depan.
+• Klik sebuah list untuk membukanya. List yang aktif berwarna biru.
+• Ganti nama list langsung pada tombolnya.
+• Urutan list bisa diubah dengan drag & drop (seret), atau diatur otomatis lewat Settings (Number / Alphabet).
+• Hapus list akan menghapus semua shortcut di dalamnya. Jika Konfirmasi Penghapusan aktif, kamu akan ditanya dulu.
+
+
+3. SHORTCUT (kartu)
+
+Setiap shortcut tampil sebagai kartu berisi logo, nama, dan link.
+
+• Klik: membuka link (di tab baru atau tab yang sama, sesuai Settings).
+• Dobel-klik: menyalin link.
+• Klik kanan (di HP: tekan dan tahan): memilih kartu. Kamu bisa memilih banyak kartu sekaligus.
+• Dobel klik kanan: mengedit kartu.
+• Ikon panah kecil di kartu: membuka atau menutup catatan (Note) milik shortcut itu.
+• Drag & drop:
+  - Seret ke kartu lain untuk mengubah urutan.
+  - Seret ke tombol list lain untuk memindahkan (atau menyalin) ke list tersebut.
+  - Jika beberapa kartu sedang dipilih, semuanya ikut terseret.
+
+Jika Duplikat dinonaktifkan di Settings, link yang sama tidak bisa ditambahkan dua kali dalam satu list.
+
+
+4. BAR ATAS
+
+Saat tidak ada yang dipilih, bar atas menampilkan:
+• Import  — memasukkan data (lihat bagian 5).
+• Settings — membuka halaman pengaturan.
+• Angka   — jumlah shortcut di list ini. Klik untuk memilih semua shortcut di list.
+• Info    — membuka panduan singkat (tour) interaktif.
+
+Saat ada shortcut atau list yang dipilih, bar berubah menjadi:
+• Jumlah terpilih
+• Delete — menghapus yang dipilih.
+• Edit   — mengubah shortcut yang dipilih.
+• Export — menyimpan yang dipilih ke file.
+• X      — membatalkan pilihan.
+
+
+5. IMPORT & EXPORT
+
+• Export: pilih shortcut atau list, lalu klik Export. Hasilnya file .json.
+• Import: klik Import lalu pilih file. Format yang didukung:
+  - File .json hasil Export atau hasil Backup.
+  - File bookmark dari browser (.html). Setiap folder bookmark menjadi satu list (folder bersarang menjadi "Induk / Anak"), dan setiap link menjadi shortcut.
+• Link yang tidak valid dilewati secara otomatis.
+• Jika ada list bernama sama, hasilnya mengikuti Settings: dibuat baru, atau menimpa list yang ada.
+
+
+6. BACKUP OTOMATIS
+
+Fitur ini melindungi datamu kalau data browser terhapus. Atur di Settings > Advanced.
+
+Di Chrome, Edge, dan Opera (komputer):
+• Pilih sebuah file backup sekali saja. Setelah itu, setiap ada perubahan data, file tersebut diperbarui otomatis.
+• Setelah browser dibuka ulang, mungkin perlu klik sekali di halaman utama untuk memberi izin menulis file.
+• Tombol yang tersedia: Backup sekarang, Ganti file, dan Putuskan (file tidak dihapus, hanya tidak diperbarui lagi).
+
+Di browser lain (termasuk kebanyakan HP):
+• Backup tidak bisa ditulis otomatis ke file, jadi file backup diunduh otomatis maksimal seminggu sekali. Kamu juga bisa menekan "Unduh backup sekarang".
+
+Isi backup: semua list dan shortcut, urutan, serta pengaturanmu.
+
+Memulihkan data:
+• Jika saat dibuka datamu kosong, muncul pesan "Data shortcut kosong. Pulihkan dari file backup?".
+• Klik Pulihkan lalu pilih file backup. Atau pilih Mulai baru untuk memulai dari kosong.
+• Backup lama tidak akan ditimpa dengan data kosong selama pesan itu belum dijawab.
+
+
+7. SETTINGS
+
+Pengaturan dikelompokkan dalam beberapa tab dan tersimpan otomatis begitu diubah.
+
+Shortcut
+• Urutan Shortcut: Custom (atur sendiri), Nama A–Z, Nama Z–A, Terbaru, atau Terlama.
+• Buka Shortcut di: Tab Baru atau Tab yang Sama.
+• Shortcut Duplikat: boleh atau tidak boleh ada link yang sama dalam satu list.
+• Pindah Shortcut ke List Lain: Cut (dipindah) atau Duplikat (disalin).
+
+List
+• Import List Bernama Sama: Buat Baru atau Timpa yang Ada.
+• Urutan List: Custom, Number (angka lebih dulu), atau Alphabet.
+• Konfirmasi Penghapusan: tampilkan atau lewati pertanyaan sebelum menghapus.
+
+Tampilan
+• Kolom Grid: 1 sampai 4 kolom. Di layar HP, 3 dan 4 kolom otomatis menjadi 2 kolom supaya kartu tetap terbaca.
+• Tema: Otomatis (ikut perangkat), Terang, atau Gelap.
+
+Advanced
+• Pengaturan backup otomatis (lihat bagian 6).
+
+
+8. TIPS CEPAT
+
+• Tekan Enter di textbox untuk menjalankan perintah. Tekan ← atau → untuk berpindah mode.
+• Mau menambah banyak link sekaligus? Import dari file bookmark browser.
+• Rutin cek status backup di Settings > Advanced supaya datamu aman.
+• Butuh bantuan lagi? Klik tombol Info di bar atas untuk mengulang panduan singkat.
