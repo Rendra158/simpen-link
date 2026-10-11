@@ -16,6 +16,7 @@ Posisi & ukuran blok utama: layout.css. Halaman Settings: settings.css. */
 --c-heading: #123A63;          /* judul / outline fokus */
 --c-selected-bg: #eef5ff;      /* kartu terpilih */
 --c-line: rgba(0, 0, 0, 0.2);  /* garis pemisah */
+--c-pin: #ffcc33;
 --icon-filter: none;           /* ikon hitam di kartu dibalik di mode gelap */
 color-scheme: light;
 }
@@ -29,6 +30,7 @@ color-scheme: light;
 --c-heading: #9cc4ff;
 --c-selected-bg: #243a58;
 --c-line: rgba(255, 255, 255, 0.25);
+--c-pin: #c79a1c;
 --icon-filter: invert(1);
 color-scheme: dark;
 }
@@ -43,6 +45,7 @@ color-scheme: dark;
   --c-heading: #9cc4ff;
   --c-selected-bg: #243a58;
   --c-line: rgba(255, 255, 255, 0.25);
+  --c-pin: #c79a1c;
   --icon-filter: invert(1);
   color-scheme: dark;
   }
@@ -583,4 +586,40 @@ transition: transform 0.3s ease;
     background-color: var(--c-green) !important;
     outline: 2px solid #1e7d3c;
     outline-offset: -2px;
+}
+
+/* Shortcut yang dipin */
+.shortcut-box.pinned::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 8px;
+    background-color: var(--c-pin);
+    pointer-events: none;
+    z-index: 3;
+}
+
+/* Hasil pencarian: garis kuning diganti ikon pin di kiri nama list */
+.shortcut-box.has-tag.pinned::before { display: none; }
+
+.list-tag .tag-pin {
+    display: inline-block;
+    width: var(--tag-fs);
+    height: var(--tag-fs);
+    margin-right: 6px;
+    vertical-align: -0.1em;
+    object-fit: contain;
+}
+
+.bulk-pin {
+    background-color: var(--c-pin);
+    color: var(--c-navy);
+    box-shadow: 0 3px 0 color-mix(in srgb, var(--c-pin) 65%, black);
+}
+
+.bulk-pin:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--c-pin) 65%, black);
 }

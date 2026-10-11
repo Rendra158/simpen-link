@@ -14,6 +14,8 @@ const SECTIONS = [
 const SETTING_DEFS = [
   { key: "shortcutSort", section: "shortcut", label: "Urutan Shortcut", def: "custom",
     options: [["custom", "Custom"], ["az", "Nama A–Z"], ["za", "Nama Z–A"], ["newest", "Terbaru"], ["oldest", "Terlama"]] },
+  { key: "pinSort", section: "shortcut", label: "Urutan Shortcut Pin", def: "az",
+    options: [["az", "A–Z"], ["za", "Z–A"], ["09", "0–9"], ["90", "9–0"]] },
   { key: "openIn", section: "shortcut", label: "Buka Shortcut di", def: "new",
     options: [["new", "Tab Baru"], ["same", "Tab yang Sama"]] },
   { key: "allowDuplicate", section: "shortcut", label: "Shortcut Duplikat", def: "on", options: ON_OFF },

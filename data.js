@@ -42,6 +42,7 @@ function cleanItem(r) {
         url,
         note: typeof r.note === "string" ? r.note : "",
         added: Number.isFinite(r.added) ? r.added : Date.now(),
+        pinned: r.pinned === true,
     };
 }
 function cleanList(r) {
@@ -119,14 +120,29 @@ function getOrderedLists() {
     }
     return [...lists.filter((l) => l.isDefault), ...rest];
 }
+function sortPinned(rows) {
+    const s = settings.pinSort;
+    const byName = (a, b) => cmpText(a.item.name, b.item.name);
+    const isNum = (r) => /^\d/.test(r.item.name);
+    if (s === "za") return [...rows].sort((a, b) => byName(b, a));
+    if (s === "09" || s === "90") {
+        const dir = s === "09" ? 1 : -1;
+        return [...rows].sort((a, b) =>
+            isNum(a) !== isNum(b) ? (isNum(a) ? -1 : 1) : dir * byName(a, b));
+    }
+    return [...rows].sort(byName);   // "az"
+}
 function sortItems(rows) {
+    const pins = rows.filter((r) => r.item.pinned);
+    const rest = rows.filter((r) => !r.item.pinned);
     const s = settings.shortcutSort;
     const byName = (a, b) => cmpText(a.item.name, b.item.name);
-    if (s === "az") return [...rows].sort(byName);
-    if (s === "za") return [...rows].sort((a, b) => byName(b, a));
-    if (s === "newest") return [...rows].sort((a, b) => b.item.added - a.item.added);
-    if (s === "oldest") return [...rows].sort((a, b) => a.item.added - b.item.added);
-    return rows;
+    let sorted = rest;
+    if (s === "az") sorted = [...rest].sort(byName);
+    else if (s === "za") sorted = [...rest].sort((a, b) => byName(b, a));
+    else if (s === "newest") sorted = [...rest].sort((a, b) => b.item.added - a.item.added);
+    else if (s === "oldest") sorted = [...rest].sort((a, b) => a.item.added - b.item.added);
+    return [...sortPinned(pins), ...sorted];   // pin selalu di atas
 }
 function hasDuplicate(listId, url, exceptId = null) {
     const target = normUrl(url);
@@ -175,12 +191,23 @@ function deleteShortcuts(listId, itemIds) {
     list.items = list.items.filter((i) => !itemIds.includes(i.id));
     saveLists();
 }
+
+function setPinned(listId, itemIds, value) {
+    const list = findList(listId);
+    if (!list) return;
+    list.items.forEach((i) => { if (itemIds.includes(i.id)) i.pinned = value; });
+    saveLists();
+}
+
 /* Urutkan ulang (satu atau banyak). Geser ke depan = sisip sebelum target,
    geser ke belakang = sisip sesudah target, jadi bisa dipindah ke posisi paling akhir.
    Item yang dipindah mengikuti urutan aslinya, bukan urutan klik. */
 function reorderShortcuts(listId, fromIds, toId) {
     const list = findList(listId);
     if (!list) return;
+    const isPinned = (id) => !!list.items.find((i) => i.id === id)?.pinned;
+    if (isPinned(toId)) return;
+    fromIds = fromIds.filter((id) => !isPinned(id));
     const moving = list.items.filter((i) => fromIds.includes(i.id));
     const toIdx = list.items.findIndex((i) => i.id === toId);
     if (!moving.length || toIdx === -1 || moving.some((i) => i.id === toId)) return;
@@ -223,7 +250,7 @@ function exportData(ids) {
     return Object.fromEntries(
         lists.filter((l) => ids.includes(l.id)).map((l) => [
             l.name,
-            l.items.map(({ name, url, note, added }) => ({ name, url, note, added })),
+            l.items.map(({ name, url, note, added, pinned }) => ({ name, url, note, added, pinned })),
         ]));
 }
 function uniqueName(base) {

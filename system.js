@@ -16,6 +16,7 @@ const importInput = document.querySelector("#import-file-input");
 // Elemen bar atas
 const bulkCount = document.querySelector("#bulk-count");
 const bulkEditBtn = document.querySelector("#bulk-edit");
+const bulkPinBtn = document.querySelector("#bulk-pin");
 const bulkDeleteBtn = document.querySelector("#bulk-delete");
 const bulkExportBtn = document.querySelector("#bulk-export");
 const bulkCancelBtn = document.querySelector("#bulk-cancel");
@@ -192,6 +193,14 @@ function updateSelectionUI() {
         && !findList([...selectedLists][0])?.isDefault;
     showBar(bulkEditBtn, oneShortcut || oneList);
 
+    // Pin: tampil kalau ada shortcut terpilih. Semua sudah pin = tombol "lepas pin".
+    showBar(bulkPinBtn, hasShortcuts && !hasLists);
+    if (hasShortcuts) {
+        const allPinned = [...selectedShortcuts].every((id) => findItem(currentId, id)?.pinned);
+        bulkPinBtn.querySelector("img").src = allPinned ? "Image/n-pin.svg" : "Image/pin.svg";
+        bulkPinBtn.setAttribute("aria-label", allPinned ? "Lepas pin" : "Pin");
+    }
+
     document.querySelectorAll(".shortcut-box").forEach(card => {
         card.classList.toggle("selected", selectedShortcuts.has(card.dataset.id));
     });
@@ -216,8 +225,12 @@ function toggleListSelection(listId) {
 
 bulkDeleteBtn.addEventListener("click", () => {
     if (selectedShortcuts.size > 0) {
-        if (settings.confirmDelete === "on" && !confirm(`Hapus ${selectedShortcuts.size} shortcut?`)) return;
-        deleteShortcuts(currentId, [...selectedShortcuts]);
+        const all = [...selectedShortcuts];
+        const isPin = (id) => !!findItem(currentId, id)?.pinned;
+        // semua terpilih pin -> boleh dihapus; campur -> hanya yang non-pin
+        const ids = all.every(isPin) ? all : all.filter((id) => !isPin(id));
+        if (settings.confirmDelete === "on" && !confirm(`Hapus ${ids.length} shortcut?`)) return;
+        deleteShortcuts(currentId, ids);
         selectedShortcuts.clear();
         renderShortcuts();
     }
@@ -230,6 +243,14 @@ bulkDeleteBtn.addEventListener("click", () => {
         renderShortcuts();
     }
     updateSelectionUI();
+});
+
+bulkPinBtn.addEventListener("click", () => {
+    const ids = [...selectedShortcuts];
+    if (!ids.length) return;
+    const allPinned = ids.every((id) => findItem(currentId, id)?.pinned);
+    setPinned(currentId, ids, !allPinned);
+    renderShortcuts();   // otomatis memperbarui seleksi & ikon tombol
 });
 
 bulkExportBtn.addEventListener("click", async () => {
@@ -382,7 +403,8 @@ function makeCard(item, listId, listName = null) {
 
     // hasil pencarian: nama list di paling atas kartu (klik = buka list itu)
     const tag = listName === null ? [] : [h("button", { class: "list-tag", type: "button", text: listName, title: listName })];
-    const card = h("div", { class: `shortcut-box ui-3d${listName === null ? "" : " has-tag"}`, "data-id": item.id, "data-list": listId },
+    if (tag.length && item.pinned) tag[0].prepend(h("img", { class: "tag-pin", src: "Image/pin.svg", alt: "Dipin" }));
+    const card = h("div", { class: `shortcut-box ui-3d${listName === null ? "" : " has-tag"}${item.pinned ? " pinned" : ""}`, "data-id": item.id, "data-list": listId },
         h("div", { class: "shortcut-main" }, top, h("div", { class: "shortcut-url", text: item.url })),
         ...tag,
         linkOverlay(item));
@@ -407,7 +429,7 @@ function renderSearch() {
     const rows = getOrderedLists()
         .flatMap((list) => list.items.map((item) => ({ item, list, s: matchScore(item, q) })))
         .filter((r) => r.s > 0)
-        .sort((a, b) => b.s - a.s);                 // skor sama = urutan lama tetap
+        .sort((a, b) => (b.item.pinned ? 1 : 0) - (a.item.pinned ? 1 : 0) || b.s - a.s);   // pin dulu, lalu skor
     gridEl.replaceChildren(...(rows.length
         ? rows.map(({ item, list }) => makeCard(item, list.id, list.name))
         : [h("div", { class: "shortcuts-empty", text: "Tidak ada yang cocok." })]));
@@ -750,7 +772,7 @@ gridEl.addEventListener("dragover", (e) => {
     if (drag?.type !== "item") return;
     edgeScroll(gridEl, e, "y");
     const card = cardOf(e);
-    if (!card || settings.shortcutSort !== "custom" || drag.listId !== currentId) return;
+    if (!card || card.classList.contains("pinned") || settings.shortcutSort !== "custom" || drag.listId !== currentId) return;
     e.preventDefault();
     card.classList.add("dragover");
 });
@@ -828,113 +850,95 @@ window.addEventListener("pageshow", (e) => { if (e.persisted) syncFromStorage();
 gridEl.dataset.cols = settings.gridCols;
 setMode(0);
 
-/* ---------- lebar list menyesuaikan ---------- */
+/* ---------- lebar list menyesuaikan: geser per tombol, tidak ada yang terpotong ---------- */
 (() => {
-    let lastLeft = 0;
-    let dir = "right";
-    let lastActive = null;
-    let selfScroll = false;
-    let userScrolled = false;
-    let timer = null;
-    let touching = false;
-    
-    function setScroll(v) {
-        const before = listEl.scrollLeft;
-        listEl.scrollLeft = v;
-        if (listEl.scrollLeft === before) return false;
-        selfScroll = true;
-        return true;
-    }
-    
+    let timer = null, touching = false, lastActive = null, lastSet = -1;
+
     function fitList() {
         if (touching) return;
         const btns = [...listEl.querySelectorAll("button")];
+        const W = listEl.clientWidth;
+        const n = btns.length;
+        if (!n || !W) return;
+
+        // 1) ukur ukuran asli (tanpa regangan)
         btns.forEach((b) => {
-            b.style.transition = "width 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease, outline-color 0.15s ease";
-            b.style.paddingLeft = "";
-            b.style.paddingRight = "";
-            b.style.minWidth = "";
-            b.style.transform = "";
+            b.style.paddingLeft = b.style.paddingRight = b.style.minWidth = b.style.transform = "";
             b.style.visibility = "visible";
         });
         const box = listEl.getBoundingClientRect();
-        const act = listEl.querySelector("button.aktif");
-        
-        if (act && act.dataset.id !== lastActive) {
-            lastActive = act.dataset.id;
-            userScrolled = false;
-            const r = act.getBoundingClientRect();
-            const d = r.left < box.left ? r.left - box.left : r.right > box.right ? r.right - box.right : 0;
-            if (Math.abs(d) > 1 && r.width <= box.width && setScroll(listEl.scrollLeft + d)) {
-                dir = d < 0 ? "left" : "right";
-                lastLeft = listEl.scrollLeft;
-                return;
+        const base = listEl.scrollLeft - box.left;
+        const rects = btns.map((b) => b.getBoundingClientRect());
+        const L = rects.map((r) => r.left + base);
+        const R = rects.map((r) => r.right + base);
+        listEl.dataset.max = Math.max(0, R[n - 1] - W);
+
+        // 2) tombol pertama yang tampil: yang paling dekat posisi scroll sekarang
+        let maxStart = n - 1;   // paling kanan yang masih membuat sisa tombol muat semua
+        while (maxStart > 0 && R[n - 1] - L[maxStart - 1] <= W + 1) maxStart--;
+        let s = 0;
+        btns.forEach((_, i) => {
+            if (Math.abs(L[i] - listEl.scrollLeft) < Math.abs(L[s] - listEl.scrollLeft)) s = i;
+        });
+
+        // 3) list aktif berganti: pastikan terlihat dengan geseran sesedikit mungkin
+        const ai = btns.findIndex((b) => b.classList.contains("aktif"));
+        if (ai >= 0 && btns[ai].dataset.id !== lastActive) {
+            lastActive = btns[ai].dataset.id;
+            if (ai < s) s = ai;
+            else if (R[ai] - L[s] > W + 1) {
+                s = ai;
+                while (s > 0 && R[ai] - L[s - 1] <= W + 1) s--;
             }
         }
-        if (listEl.scrollLeft < lastLeft) dir = "left";
-        else if (listEl.scrollLeft > lastLeft) dir = "right";
-        
-        const isFull = (b) => {
-            const r = b.getBoundingClientRect();
-            return r.left >= box.left - 1 && r.right <= box.right + 1;
-        };
-        let vis = btns.filter(isFull);
-        if (!vis.length) return;
-        
-        const first = dir === "left"
-            ? btns.find((b) => b.getBoundingClientRect().right > box.left + 1)
-            : vis[0];
-        let shift = first.getBoundingClientRect().left - box.left;
-        
-        if (act && !userScrolled && shift < 0 && act.getBoundingClientRect().right - shift > box.right + 1) {
-            shift = vis[0].getBoundingClientRect().left - box.left;
-        }
-        if (Math.abs(shift) > 1 && setScroll(listEl.scrollLeft + shift)) {
-            lastLeft = listEl.scrollLeft;
-            return;
-        }
-        vis = btns.filter(isFull);
-        btns.forEach((b) => {
-            const keep = vis.includes(b) || b === act || b === document.activeElement;
-            b.style.visibility = keep ? "visible" : "hidden";
+        s = Math.min(s, maxStart);
+
+        // 4) geser (snap), lalu ukur ulang posisi sebenarnya
+        listEl.scrollLeft = L[s];
+        lastSet = listEl.scrollLeft;   // untuk mengenali event scroll buatan sendiri
+        const r2 = btns.map((b) => b.getBoundingClientRect());
+        const vis = [];
+        btns.forEach((b, i) => {
+            const full = r2[i].left >= box.left - 1 && r2[i].right <= box.right + 1;
+            if (full) vis.push(i);
+            b.style.visibility = full || b === document.activeElement ? "visible" : "hidden";
         });
-        listEl.dataset.max = listEl.scrollWidth - listEl.clientWidth;   // batas scroll asli
-        
-        const leftGap = Math.max(0, vis[0].getBoundingClientRect().left - box.left);
-        const rightGap = Math.max(0, box.right - vis[vis.length - 1].getBoundingClientRect().right);
+        if (!vis.length) return;
+
+        // 5) bagi sisa ruang ke tombol yang tampil supaya pas selebar list
+        const leftGap = Math.max(0, r2[vis[0]].left - box.left);
+        const rightGap = Math.max(0, box.right - r2[vis[vis.length - 1]].right);
         const add = (leftGap + rightGap) / vis.length;
-        if (add > 0) {
-            const pad = parseFloat(getComputedStyle(vis[0]).paddingLeft) || 0;
-            vis.forEach((b) => {
-                if (b.classList.contains("aktif")) {
-                    b.style.minWidth = b.getBoundingClientRect().width + add + "px";
-                } else {
-                    b.style.paddingLeft = pad + add / 2 + "px";
-                    b.style.paddingRight = pad + add / 2 + "px";
-                }
-            });
-            if (leftGap > 0) vis.forEach((b) => (b.style.transform = `translateX(${-leftGap}px)`));
-        }
-        lastLeft = listEl.scrollLeft;
+        if (add < 0.5) return;
+        const pad = parseFloat(getComputedStyle(btns[vis[0]]).paddingLeft) || 0;
+        vis.forEach((i) => {
+            const b = btns[i];
+            if (b.classList.contains("aktif")) b.style.minWidth = r2[i].width + add + "px";
+            else {
+                b.style.paddingLeft = pad + add / 2 + "px";
+                b.style.paddingRight = pad + add / 2 + "px";
+            }
+            if (leftGap > 0) b.style.transform = `translateX(${-leftGap}px)`;
+        });
     }
-    
+
+    const later = (ms) => { clearTimeout(timer); timer = setTimeout(fitList, ms); };
+
     listEl.addEventListener("scroll", () => {
+        if (Math.abs(listEl.scrollLeft - lastSet) < 1) return;   // scroll dari fitList sendiri: abaikan
         const max = Number(listEl.dataset.max);
         if (max && listEl.scrollLeft > max) listEl.scrollLeft = max;
-        if (selfScroll) selfScroll = false;
-        else userScrolled = true;
         listEl.querySelectorAll("button").forEach((b) => (b.style.visibility = "visible"));
-        clearTimeout(timer);
-        if (!touching) timer = setTimeout(fitList, 120);
+        if (!touching) later(120);
     });
     listEl.addEventListener("touchstart", () => { touching = true; clearTimeout(timer); }, { passive: true });
-    const endTouch = () => { touching = false; clearTimeout(timer); timer = setTimeout(fitList, 150); };
+    const endTouch = () => { touching = false; later(150); };
     listEl.addEventListener("touchend", endTouch);
     listEl.addEventListener("touchcancel", endTouch);
-    listEl.addEventListener("transitionend", (e) => {
-        if (e.propertyName === "width") fitList();
-    });
+
     window.addEventListener("resize", fitList);
+    window.addEventListener("load", fitList);
+    document.fonts?.ready.then(fitList);
     new MutationObserver(fitList).observe(listEl, {
         childList: true,
         subtree: true,
@@ -960,7 +964,7 @@ setMode(0);
     const okList = (btn) => drag.type === "list"
         ? !drag.listIds.includes(btn.dataset.id) && !findList(btn.dataset.id).isDefault
         : btn.dataset.id !== drag.listId;
-    const okCard = (card) => settings.shortcutSort === "custom" && !drag.itemIds.includes(card.dataset.id);
+        const okCard = (card) => settings.shortcutSort === "custom" && !card.classList.contains("pinned") && !drag.itemIds.includes(card.dataset.id);
 
     function canDrag(kind, id) {
         if (!mode().editable) return false;
@@ -1082,4 +1086,3 @@ setMode(0);
         if (held || Date.now() < suppressUntil) { e.preventDefault(); e.stopImmediatePropagation(); }
     }, true);
 })();
-

@@ -136,26 +136,34 @@ html, body { height: 100%; margin: 0; }
 /* ---------- 4. HP (<= 768px) ---------- */
 @media (max-width: 768px) {
   :root {
-    --m-list-bottom: 65px;
+    --bar-h: 38px;
+    --textbox-h: 34px;
+    --textbox-bottom: 16px;
+    --mode-hit-w: 60px;
+    --mode-icon-left: 16px;
+    --field-gap: 8px;
+    --field-pad: 0 8px;
+    --field-note-h: 64px;
+    --list-h: 32px;
+    --list-btn-pad: 4px 10px;
+    --grid-gap: 8px;
+    --fade-h: 120px;
 
-    --m-grid-top: calc(var(--bar-h) + 16px);
-    --m-grid-right: 20px;
+    --m-list-bottom: calc(var(--textbox-bottom) + var(--textbox-h) + 8px);
+    --m-grid-top: calc(var(--bar-h) + 12px);
+    --m-grid-left: 12px;
+    --m-grid-right: 12px;
     --m-grid-bottom: 0px;
-    --m-grid-pad-bottom: 130px;
-    --m-grid-left: 20px;
-    --fade-h: 150px;
-
-    --textbox-bottom: 20px;   /* --field-bottom ikut dihitung ulang otomatis */
+    --m-grid-pad-bottom: calc(var(--m-list-bottom) + var(--list-h) + 20px);
   }
 
-  /* List & textbox: 70% lebar layar, di tengah (15% kiri + 15% kanan) */
+  /* ----- layout ----- */
   .List {
     position: absolute;
     left: var(--textbox-side);
     right: var(--textbox-side);
     bottom: var(--m-list-bottom);
   }
-
   .textbox-wrapper {
     position: absolute;
     left: var(--textbox-side);
@@ -163,8 +171,6 @@ html, body { height: 100%; margin: 0; }
     bottom: var(--textbox-bottom);
     z-index: 95;
   }
-
-  /* Grid mulai di bawah bar atas */
   .shortcuts-grid {
     position: absolute;
     top: var(--m-grid-top);
@@ -173,15 +179,67 @@ html, body { height: 100%; margin: 0; }
     left: var(--m-grid-left);
     padding: 0 0 var(--m-grid-pad-bottom);
   }
-  /* di layar sempit, 3 dan 4 kolom dibatasi jadi 2 supaya kartu tetap terbaca */
-  .shortcuts-grid[data-cols="3"], .shortcuts-grid[data-cols="4"] { --cols: 2; }
-
-  /* Name & Note berdampingan, sejajar dengan textbox (70%) */
   .field { display: none; bottom: var(--field-bottom); width: var(--field-w); }
   .field.visible { display: block; z-index: 94; }
   .a-name-field { left: var(--field-name-left); }
   .a-note-field { right: var(--field-note-right); }
 
+  /* ----- grid: maksimal 3 kolom, tinggi kartu mengikuti lebar layar ----- */
+  .shortcuts-grid[data-cols="1"] { --cols: 1; --shortcut-h: clamp(70px, calc((100vw - 24px) * 0.25), 105px); }
+  .shortcuts-grid[data-cols="2"] { --cols: 2; --shortcut-h: clamp(60px, calc((100vw - 32px) * 0.225), 100px); }
+  .shortcuts-grid[data-cols="3"],
+  .shortcuts-grid[data-cols="4"] { --cols: 3; --shortcut-h: clamp(50px, calc((100vw - 40px) * 0.1933), 90px); }
+
+  /* ----- isi kartu ikut mengecil ----- */
+  .shortcut-box { padding: calc(var(--shortcut-h) * 0.16); }
+  .shortcut-top { gap: 8px; }
+  .shortcut-name {
+    margin-left: -2px;
+    font-size: max(9px, calc(var(--shortcut-h) * 0.2));
+  }
+  .shortcut-url {
+    margin-top: calc(var(--shortcut-h) * 0.1);
+    font-size: max(8px, calc(var(--shortcut-h) * 0.15));
+  }
+  .shortcut-box.note-open .shortcut-note {
+    margin-left: 6px;
+    padding-left: 6px;
+    font-size: max(8px, calc(var(--shortcut-h) * 0.15));
+  }
+  .note-toggle { margin-right: -6px; }
+  .oc-note {
+    width: calc(var(--shortcut-h) * 0.4);
+    height: calc(var(--shortcut-h) * 0.4);
+  }
+
+  /* ----- bar atas ----- */
+  .bar .bar-item { margin: 0 2px; }
+  .bar .bulk-btn.bar-item:not(.bar-hide) { padding: 4px 8px; font-size: 11px; border-radius: 6px; }
+  .bar span.bar-item { font-size: 12px; }
+  .bulk-btn img { width: 14px; height: 14px; }
+  .bar .LV-bar { height: 20px; margin: 0 6px; }
+
+  /* ----- textbox ----- */
+  .mode-icon { width: 24px; height: 24px; }
+  .LV { height: var(--textbox-h); }
+  .LV1 { height: 20px; }
+  .cancel { width: 24px; height: 24px; }
+  .copy { width: 18px; height: 18px; }
+  /* font .main sengaja tetap 16px (di bawah itu iPhone otomatis zoom saat mengetik) */
+
+  /* ----- field Name & Note ----- */
+  .field input, .field textarea { font-size: 11px; padding: 6px 0; }
+  .field textarea.a-note { line-height: 14px; }
+
+  /* ----- list ----- */
+  .List button { font-size: 11px; }
+  .List button.favorite img { width: 10px; height: 10px; margin-right: 4px; }
+
+  /* ----- halaman Settings ----- */
+  .page-settings .bar { padding: 0 52px; }
+  .bar > #p-back-btn { left: 6px; }
+  .bar > .bulk-btn { padding: 4px 10px; font-size: 11px; }
+  .settings-sidebar button { padding: 4px 10px; font-size: 11px; }
 }
 
 /* ---------- Home ---------- */
