@@ -1,135 +1,158 @@
 About Simpen.Link
 
-Simpen.Link is a website for creating, saving, and organizing shortcuts to other websites so you can access them easily. All data is stored locally on your device in your browser, so you don't need an account. You can also install the website like an app and use it offline.
+Simpen.Link is a website for creating, saving, and organizing shortcuts to your favorite websites so they are easy to reach. All data is stored on your own device (in the browser), no account needed. The site can also be installed like an app and still opens offline.
 
 
-1. TEXT BOX (Main Command Center)
+1. TEXTBOX (the center of all commands)
 
-The text box is at the bottom of the screen. Type something, then press Enter or click the icon on the right side of the text box. Your input is processed according to the active mode. The text box's color and icon change to match the mode.
+The textbox is at the bottom of the screen. Type something, then press Enter or click the icon on the right side of the textbox. What you typed is handled according to the active mode. The textbox color and icon change with the mode.
 
-If the text box is empty, click its icon or press the Left or Right Arrow key to switch modes.
+When the textbox is empty, click the icon (or press the left / right arrow keys) to switch modes.
 
 Available modes:
 
 • Add Link (blue)
-  Creates a new shortcut. Type or paste a link, such as youtube.com. You can leave out https://. The Name and Note fields are optional. If Name is empty, a name is generated automatically from the website. The shortcut is added to the currently selected list.
+  Creates a new shortcut. Type or paste a link, for example youtube.com. The https:// prefix can be left out. The Name and Note fields are optional. If Name is empty, the name is generated from the website. The shortcut goes into the currently selected list.
 
 • Add List (orange)
-  Creates a new list. Each list must have a unique name.
+  Creates a new list. A list name cannot be the same as another list.
 
 • Search (green)
-  Searches for shortcuts by name across all lists. Each result has a small label at the top of its card showing which list it belongs to. Click the label to switch to that list.
+  Searches shortcuts by name across all lists. Pinned shortcuts appear first. Each result has a small ribbon above the card showing which list it came from. Click the ribbon to jump to that list.
 
 • Edit (purple)
-  Changes the link, name, or note of an existing shortcut. In this mode, a Copy button lets you copy the contents of the text box.
+  Changes the link, name, or note of an existing shortcut. In this mode there is a Copy button to copy the textbox content. Press Escape or the X button to cancel.
 
-The X button in the text box clears the text you're typing.
+The X button in the textbox clears the text you are typing.
 
-Additional fields:
-• Name — the shortcut's name.
-• Note — a short note. This field appears above the text box when needed.
+Extra fields:
+• Name  — the shortcut name.
+• Note  — a short note. This field appears above the textbox when needed.
 
 
 2. LISTS
 
-Lists are groups of shortcuts displayed as a row of buttons above the text box.
+A list is a group of shortcuts, shown as a row of buttons above the textbox. Swipe the row left or right if there are many lists.
 
-• Home is the default list for your most frequently used shortcuts. It can't be deleted or renamed, and it always stays first.
-• Click a list to open it. The active list is highlighted in blue.
-• Rename a list directly on its button.
-• Reorder lists by dragging and dropping them, or sort them automatically in Settings (Number / Alphabetical).
-• Deleting a list also deletes all shortcuts in it. If Delete Confirmation is enabled, you'll be asked to confirm first.
+• Home is the built-in list for the shortcuts you use most. Home cannot be deleted or renamed, and it is always first.
+• Home has an extra panel (on the side, or below on phones) that you can switch using the menu above it:
+  - Recommended: website suggestions. Press the + button to add one to Home.
+  - Most opened: the shortcuts you open most often.
+  - Recently added: the newest shortcuts from all lists.
+  - Recently used: the shortcuts you opened most recently.
+  - Pin: all pinned shortcuts from all lists.
+• Click a list to open it. The active list is blue.
+• Rename a list: double-click its button, or select the list and press Edit.
+• List order can be changed with drag & drop, or set automatically in Settings (Number / Alphabet).
+• Deleting a list deletes all shortcuts inside it. If Confirm Deletion is on, you will be asked first.
 
 
-3. SHORTCUTS (CARDS)
+3. SHORTCUTS (cards)
 
-Each shortcut appears as a card containing a logo, name, and link.
+Each shortcut is shown as a card with a logo, name, and link.
 
-• Click: Opens the link in a new tab or the current tab, depending on your Settings.
-• Double-click: Copies the link.
-• Right-click (on a phone, tap and hold): Selects the card. You can select multiple cards at once.
-• Double right-click: Edits the card.
-• Small arrow icon on a card: Shows or hides that shortcut's note.
-• Drag and drop:
-  - Drag a card onto another card to change its position.
-  - Drag a card onto another list's button to move or copy it to that list.
-  - If multiple cards are selected, they all move together.
+• Click: opens the link (in a new tab or the same tab, depending on Settings).
+• Double-click: copies the link.
+• Right-click (on phones: press and hold): selects the card. You can select many cards at once. On phones, while any card is selected, tap another card to select or deselect it.
+• Double right-click: edits the card.
+• Small arrow icon on a card: opens or closes its note. The note appears below the link, and the card grows downward (up to about 3 card rows).
+• Yellow stripe on the left of a card: this shortcut is pinned.
+• Drag & drop (on phones: press and hold, then move):
+  - Drag onto another card to change the order.
+  - Drag onto another list button to move (or copy) it to that list.
+  - If several cards are selected, all of them are dragged together.
+  - Pinned cards cannot be dragged.
 
-If Duplicate Shortcuts is disabled in Settings, the same link can't be added more than once to a single list.
+If Duplicates is turned off in Settings, the same link cannot be added twice in one list.
 
 
 4. TOP BAR
 
 When nothing is selected, the top bar shows:
-• Import — imports data (see Section 5).
-• Settings — opens the settings page.
-• Number — shows the number of shortcuts in the current list. Click it to select all shortcuts in that list.
-• Info — opens a short interactive walkthrough.
+• Import   — bring in data (see section 5).
+• Settings — open the settings page.
+• Number   — how many shortcuts are in this list. Click to select all shortcuts in the list.
+• Info     — start a short interactive tour.
 
-When a shortcut or list is selected, the top bar changes to show:
-• Number selected
-• Delete — deletes the selected items.
-• Edit — edits the selected shortcuts.
-• Export — saves the selected items to a file.
-• X — clears the selection.
+When shortcuts or lists are selected, the bar changes to:
+• Selected count
+• Delete — delete the selection.
+• Edit   — edit the selected shortcut, or rename the selected list (only works when exactly one is selected).
+• Pin    — pin shortcuts to the top of the list. If everything selected is already pinned, this button unpins them.
+• Export — save the selected lists to a file.
+• X      — cancel the selection.
+
+Note: pinned shortcuts are not deleted when selected together with regular shortcuts. To delete them, select only the pinned ones.
 
 
 5. IMPORT & EXPORT
 
-• Export: Select shortcuts or a list, then click Export. The result is a .json file.
-• Import: Click Import and select a file. Supported formats:
-  - .json files created by Export or Backup.
-  - Browser bookmark files (.html). Each bookmark folder becomes a list (nested folders are named “Parent / Child”), and each link becomes a shortcut.
+• Export: select one or more lists, then click Export. The result is a .json file.
+• Import: click Import and choose a file. Supported formats:
+  - .json files from Export or Backup.
+  - Browser bookmark files (.html). Each bookmark folder becomes a list (nested folders become "Parent / Child"), and each link becomes a shortcut.
 • Invalid links are skipped automatically.
-• If a list with the same name already exists, the result depends on your Settings: create a new list or overwrite the existing one.
+• If a list with the same name exists, the result follows Settings: create a new one, or overwrite the existing list.
 
 
 6. AUTOMATIC BACKUP
 
-This feature protects your data if your browser data gets deleted. Configure it in Settings > Advanced.
+This feature protects your data in case browser data is cleared. Set it up in Settings > Advanced.
 
-In Chrome, Edge, and Opera on a computer:
-• Select a backup file once. After that, the file is automatically updated whenever your data changes.
-• After restarting the browser, you may need to click once on the home page to grant permission to write to the file.
-• Available buttons: Back Up Now, Change File, and Disconnect (the file isn't deleted; it simply stops being updated).
+On Chrome, Edge, and Opera (desktop):
+• Choose a backup file once. After that, every time your data changes, the file is updated automatically.
+• After reopening the browser, you may need to click once on the main page to allow writing to the file.
+• Available buttons: Back up now, Change file, and Disconnect (the file is not deleted, it just stops being updated).
 
-In other browsers, including most phones:
-• Backups can't be written automatically to a file, so a backup file is downloaded automatically at most once a week. You can also click “Download Backup Now.”
+On other browsers (including most phones):
+• Backups cannot be written to a file automatically, so a backup file is downloaded automatically at most once a week. You can also press "Download backup now".
 
-The backup contains all your lists and shortcuts, their order, and your settings.
+Backup contents: all lists and shortcuts, their order, and your settings.
 
 Restoring data:
-• If your data is empty when you open the site, you'll see the message “No shortcut data found. Restore from a backup file?”
-• Click Restore and select a backup file. Or choose Start Fresh to begin with no data.
-• An existing backup won't be overwritten with empty data until you respond to that message.
+• If your data is empty when the page opens, you will see "Shortcut data is empty. Restore from a backup file?".
+• Click Restore and choose a backup file, or choose Start fresh to begin from empty.
+• The old backup will not be overwritten with empty data while that message is unanswered.
 
 
 7. SETTINGS
 
-Settings are organized into several tabs and are saved automatically whenever you change them.
+Settings are grouped into tabs and saved automatically when changed.
 
-Shortcuts
-• Shortcut Order: Custom, Name A–Z, Name Z–A, Newest, or Oldest.
-• Open Shortcuts In: New Tab or Same Tab.
-• Duplicate Shortcuts: Allow or disallow the same link more than once in a list.
-• Move Shortcuts to Another List: Cut (move) or Duplicate (copy).
+Shortcut
+• Shortcut Order: Custom (arrange yourself), Name A–Z, Name Z–A, Newest, or Oldest.
+• Pinned Shortcut Order: A–Z, Z–A, 0–9, or 9–0. Pinned shortcuts are always on top.
+• Open Shortcuts in: New Tab or Same Tab.
+• Duplicate Shortcuts: allow or disallow the same link in one list.
+• Move Shortcut to Another List: Cut (move) or Duplicate (copy).
 
-Lists
-• Import Lists with Duplicate Names: Create New or Overwrite Existing.
-• List Order: Custom, Number (numbers first), or Alphabetical.
-• Delete Confirmation: Show or skip the confirmation prompt before deleting.
+List
+• Import Lists with Same Name: Create New or Overwrite Existing.
+• List Order: Custom, Number (digits first), or Alphabet.
+• Confirm Deletion: show or skip the question before deleting.
 
-Appearance
-• Grid Columns: 1 to 4 columns. On phone screens, 3- and 4-column layouts automatically switch to 2 columns to keep cards readable.
-• Theme: Automatic (follows your device), Light, or Dark.
+Display
+• Grid Columns: 1 to 4 columns. On phones, 4 columns automatically becomes 3 so cards stay readable.
+• Theme: Auto (follow device), Light, or Dark.
+• Language: Indonesia or English. The page reloads when the language changes.
 
 Advanced
-• Automatic backup settings (see Section 6).
+• Automatic backup settings (see section 6).
 
 
-8. QUICK TIPS
+8. STORAGE & PRIVACY
 
-• Press Enter in the text box to run a command. Press ← or → to switch modes.
-• Need to add many links at once? Import a browser bookmark file.
+• All shortcuts, lists, and settings are stored only in this device's browser. There is no account, and no server stores your data.
+• Data does not sync between devices automatically. To switch devices, use Export then Import.
+• Data can be lost if you clear browser data. Safari on iPhone may also delete site data that has not been opened for about 7 days. Adding Simpen.Link to the Home Screen helps prevent this.
+• Turn on backup (section 6) to keep your data safe.
+• Shortcut logos are fetched from Google's favicon service or directly from the target site. Only the domain name is sent, not the full link or your notes.
+
+
+9. QUICK TIPS
+
+• Press Enter in the textbox to run a command. Press ← or → to switch modes.
+• Want to add many links at once? Import from a browser bookmark file.
+• Pin the shortcuts you use most so they stay on top.
 • Check your backup status regularly in Settings > Advanced to keep your data safe.
-• Need help? Click Info in the top bar to replay the short walkthrough.
+• Need help again? Click the Info button in the top bar to replay the short tour.

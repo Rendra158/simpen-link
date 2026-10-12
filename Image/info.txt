@@ -18,10 +18,10 @@ Mode yang tersedia:
   Membuat list baru. Nama list tidak boleh sama dengan list lain.
 
 • Search (hijau)
-  Mencari shortcut berdasarkan nama dari semua list. Setiap hasil punya pita kecil di atas kartu yang menunjukkan asal list-nya. Klik pita itu untuk pindah ke list tersebut.
+  Mencari shortcut berdasarkan nama dari semua list. Shortcut yang di-pin tampil lebih dulu. Setiap hasil punya pita kecil di atas kartu yang menunjukkan asal list-nya. Klik pita itu untuk pindah ke list tersebut.
 
 • Edit (ungu)
-  Mengubah link, nama, atau catatan dari shortcut yang sudah dibuat. Di mode ini ada tombol Salin untuk menyalin isi textbox.
+  Mengubah link, nama, atau catatan dari shortcut yang sudah dibuat. Di mode ini ada tombol Salin untuk menyalin isi textbox. Tekan Escape atau tombol X untuk membatalkan.
 
 Tombol X di textbox menghapus teks yang sedang diketik.
 
@@ -32,11 +32,17 @@ Kolom tambahan:
 
 2. LIST
 
-List adalah kelompok shortcut, tampil sebagai deretan tombol di atas textbox.
+List adalah kelompok shortcut, tampil sebagai deretan tombol di atas textbox. Geser deretan list ke kiri atau kanan kalau jumlahnya banyak.
 
 • Home adalah list bawaan untuk shortcut yang paling sering dipakai. Home tidak bisa dihapus atau diganti namanya, dan selalu berada paling depan.
+• Di Home ada panel tambahan (di samping, atau di bawah pada HP) yang bisa diganti lewat menu di atasnya:
+  - Rekomendasi: saran website. Tekan tombol + untuk menambahkannya ke Home.
+  - Sering dibuka: shortcut yang paling banyak dibuka.
+  - Baru ditambahkan: shortcut terbaru dari semua list.
+  - Terakhir dipakai: shortcut yang terakhir dibuka.
+  - Pin: semua shortcut yang di-pin dari semua list.
 • Klik sebuah list untuk membukanya. List yang aktif berwarna biru.
-• Ganti nama list langsung pada tombolnya.
+• Ganti nama list: dobel-klik tombolnya, atau pilih list lalu tekan Edit.
 • Urutan list bisa diubah dengan drag & drop (seret), atau diatur otomatis lewat Settings (Number / Alphabet).
 • Hapus list akan menghapus semua shortcut di dalamnya. Jika Konfirmasi Penghapusan aktif, kamu akan ditanya dulu.
 
@@ -47,13 +53,15 @@ Setiap shortcut tampil sebagai kartu berisi logo, nama, dan link.
 
 • Klik: membuka link (di tab baru atau tab yang sama, sesuai Settings).
 • Dobel-klik: menyalin link.
-• Klik kanan (di HP: tekan dan tahan): memilih kartu. Kamu bisa memilih banyak kartu sekaligus.
+• Klik kanan (di HP: tekan dan tahan): memilih kartu. Kamu bisa memilih banyak kartu sekaligus. Di HP, selama ada kartu yang terpilih, ketuk kartu lain untuk memilih atau melepas pilihan.
 • Dobel klik kanan: mengedit kartu.
-• Ikon panah kecil di kartu: membuka atau menutup catatan (Note) milik shortcut itu.
-• Drag & drop:
+• Ikon panah kecil di kartu: membuka atau menutup catatan (Note). Catatan muncul di bawah link, dan kartu memanjang ke bawah (maksimal sekitar 3 baris kartu).
+• Garis kuning di sisi kiri kartu: tanda shortcut itu di-pin.
+• Drag & drop (di HP: tekan dan tahan, lalu geser):
   - Seret ke kartu lain untuk mengubah urutan.
   - Seret ke tombol list lain untuk memindahkan (atau menyalin) ke list tersebut.
   - Jika beberapa kartu sedang dipilih, semuanya ikut terseret.
+  - Kartu yang di-pin tidak bisa diseret.
 
 Jika Duplikat dinonaktifkan di Settings, link yang sama tidak bisa ditambahkan dua kali dalam satu list.
 
@@ -61,22 +69,25 @@ Jika Duplikat dinonaktifkan di Settings, link yang sama tidak bisa ditambahkan d
 4. BAR ATAS
 
 Saat tidak ada yang dipilih, bar atas menampilkan:
-• Import  — memasukkan data (lihat bagian 5).
+• Import   — memasukkan data (lihat bagian 5).
 • Settings — membuka halaman pengaturan.
-• Angka   — jumlah shortcut di list ini. Klik untuk memilih semua shortcut di list.
-• Info    — membuka panduan singkat (tour) interaktif.
+• Angka    — jumlah shortcut di list ini. Klik untuk memilih semua shortcut di list.
+• Info     — membuka panduan singkat (tour) interaktif.
 
 Saat ada shortcut atau list yang dipilih, bar berubah menjadi:
 • Jumlah terpilih
 • Delete — menghapus yang dipilih.
-• Edit   — mengubah shortcut yang dipilih.
-• Export — menyimpan yang dipilih ke file.
+• Edit   — mengubah shortcut yang dipilih, atau mengganti nama list yang dipilih (hanya bisa kalau yang dipilih satu).
+• Pin    — menyematkan shortcut ke bagian atas list. Kalau semua yang dipilih sudah di-pin, tombol ini melepas pin.
+• Export — menyimpan list yang dipilih ke file.
 • X      — membatalkan pilihan.
+
+Catatan: shortcut yang di-pin tidak ikut terhapus kalau dipilih bersama shortcut biasa. Untuk menghapusnya, pilih yang di-pin saja.
 
 
 5. IMPORT & EXPORT
 
-• Export: pilih shortcut atau list, lalu klik Export. Hasilnya file .json.
+• Export: pilih satu atau beberapa list, lalu klik Export. Hasilnya file .json.
 • Import: klik Import lalu pilih file. Format yang didukung:
   - File .json hasil Export atau hasil Backup.
   - File bookmark dari browser (.html). Setiap folder bookmark menjadi satu list (folder bersarang menjadi "Induk / Anak"), dan setiap link menjadi shortcut.
@@ -110,6 +121,7 @@ Pengaturan dikelompokkan dalam beberapa tab dan tersimpan otomatis begitu diubah
 
 Shortcut
 • Urutan Shortcut: Custom (atur sendiri), Nama A–Z, Nama Z–A, Terbaru, atau Terlama.
+• Urutan Shortcut Pin: A–Z, Z–A, 0–9, atau 9–0. Shortcut yang di-pin selalu di atas.
 • Buka Shortcut di: Tab Baru atau Tab yang Sama.
 • Shortcut Duplikat: boleh atau tidak boleh ada link yang sama dalam satu list.
 • Pindah Shortcut ke List Lain: Cut (dipindah) atau Duplikat (disalin).
@@ -120,16 +132,27 @@ List
 • Konfirmasi Penghapusan: tampilkan atau lewati pertanyaan sebelum menghapus.
 
 Tampilan
-• Kolom Grid: 1 sampai 4 kolom. Di layar HP, 3 dan 4 kolom otomatis menjadi 2 kolom supaya kartu tetap terbaca.
+• Kolom Grid: 1 sampai 4 kolom. Di layar HP, 4 kolom otomatis menjadi 3 kolom supaya kartu tetap terbaca.
 • Tema: Otomatis (ikut perangkat), Terang, atau Gelap.
+• Bahasa: Indonesia atau English. Halaman dimuat ulang saat bahasa diganti.
 
 Advanced
 • Pengaturan backup otomatis (lihat bagian 6).
 
 
-8. TIPS CEPAT
+8. PENYIMPANAN & PRIVASI
+
+• Semua shortcut, list, dan pengaturan disimpan hanya di browser perangkat ini. Tidak ada akun, dan tidak ada server yang menyimpan datamu.
+• Data tidak otomatis sinkron antar perangkat. Untuk pindah perangkat, gunakan Export lalu Import.
+• Data bisa hilang kalau kamu membersihkan data browser. Safari di iPhone juga bisa menghapus data situs yang tidak dibuka sekitar 7 hari. Menambahkan Simpen.Link ke Layar Utama membantu mencegahnya.
+• Aktifkan backup (bagian 6) supaya datamu tetap aman.
+• Logo shortcut diambil dari layanan favicon Google atau langsung dari situs tujuan. Yang dikirim hanya nama domain, bukan link lengkap atau catatanmu.
+
+
+9. TIPS CEPAT
 
 • Tekan Enter di textbox untuk menjalankan perintah. Tekan ← atau → untuk berpindah mode.
 • Mau menambah banyak link sekaligus? Import dari file bookmark browser.
+• Pin shortcut yang paling sering dipakai supaya selalu di atas.
 • Rutin cek status backup di Settings > Advanced supaya datamu aman.
 • Butuh bantuan lagi? Klik tombol Info di bar atas untuk mengulang panduan singkat.
