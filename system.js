@@ -608,8 +608,7 @@ listEl.addEventListener("keydown", (e) => {
 
 listEl.addEventListener("wheel", (e) => {
     if (!e.deltaY || e.shiftKey) return;
-    const max = Number(listEl.dataset.max) || Infinity;
-    listEl.scrollLeft = Math.min(listEl.scrollLeft + e.deltaY, max);
+    listEl.scrollLeft += e.deltaY;   // browser sendiri membatasi di ujung
     e.preventDefault();
 }, { passive: false });
 
@@ -957,41 +956,33 @@ setMode(0);
         }
         s = Math.min(s, maxStart);
 
-        // 4) geser (snap), lalu ukur ulang posisi sebenarnya
-        listEl.scrollLeft = L[s];
-        lastSet = listEl.scrollLeft;   // untuk mengenali event scroll buatan sendiri
-        const r2 = btns.map((b) => b.getBoundingClientRect());
-        const vis = [];
-        btns.forEach((b, i) => {
-            const full = r2[i].left >= box.left - 1 && r2[i].right <= box.right + 1;
-            if (full) vis.push(i);
-            b.style.visibility = full || b === document.activeElement ? "visible" : "hidden";
-        });
-        if (!vis.length) return;
+        // 4) tombol yang tampil: dari s sampai end (semua yang muat utuh)
+        let end = s;
+        while (end + 1 < n && R[end + 1] - L[s] <= W + 1) end++;
+        const count = end - s + 1;
+        const add = Math.max(0, (W - (R[end] - L[s])) / count);   // sisa ruang dibagi rata
+        const pad = parseFloat(getComputedStyle(btns[s]).paddingLeft) || 0;
 
-        // 5) bagi sisa ruang ke tombol yang tampil supaya pas selebar list
-        const leftGap = Math.max(0, r2[vis[0]].left - box.left);
-        const rightGap = Math.max(0, box.right - r2[vis[vis.length - 1]].right);
-        const add = (leftGap + rightGap) / vis.length;
-        if (add < 0.5) return;
-        const pad = parseFloat(getComputedStyle(btns[vis[0]]).paddingLeft) || 0;
-        vis.forEach((i) => {
-            const b = btns[i];
-            if (b.classList.contains("aktif")) b.style.minWidth = r2[i].width + add + "px";
+        btns.forEach((b, i) => {
+            const on = i >= s && i <= end;
+            b.style.visibility = on || b === document.activeElement ? "visible" : "hidden";
+            if (!on || add < 0.5) return;
+            if (b.classList.contains("aktif")) b.style.minWidth = R[i] - L[i] + add + "px";
             else {
                 b.style.paddingLeft = pad + add / 2 + "px";
                 b.style.paddingRight = pad + add / 2 + "px";
             }
-            if (leftGap > 0) b.style.transform = `translateX(${-leftGap}px)`;
         });
+
+        // 5) geser SETELAH diregangkan, supaya area scroll sudah cukup panjang
+        listEl.scrollLeft = L[s];
+        lastSet = listEl.scrollLeft;   // untuk mengenali event scroll buatan sendiri
     }
 
     const later = (ms) => { clearTimeout(timer); timer = setTimeout(fitList, ms); };
 
     listEl.addEventListener("scroll", () => {
         if (Math.abs(listEl.scrollLeft - lastSet) < 1) return;   // scroll dari fitList sendiri: abaikan
-        const max = Number(listEl.dataset.max);
-        if (max && listEl.scrollLeft > max) listEl.scrollLeft = max;
         listEl.querySelectorAll("button").forEach((b) => (b.style.visibility = "visible"));
         if (!touching) later(120);
     });
