@@ -11,7 +11,6 @@
   --grid-gap: 16px;
   --shortcut-h: 90px;
   --fade-h: 160px;
-  --note-lines: 2;
 
   --bar-h: 45px;
 
@@ -79,6 +78,11 @@ html, body { height: 100%; margin: 0; }
 .shortcuts-grid[data-cols="2"] { --cols: 2; --shortcut-h: 100px; }
 .shortcuts-grid[data-cols="3"] { --cols: 3; --shortcut-h: 90px; }
 .shortcuts-grid[data-cols="4"] { --cols: 4; --shortcut-h: 80px; }
+
+/* Tinggi baris tetap = tinggi kartu, supaya kartu bisa mengambil 2-3 baris (grid-row: span N dari JS).
+   Tidak berlaku di Home (ada judul) dan hasil pencarian (kartu punya tag). */
+.shortcuts-grid:not(:has(.home-body)):not(:has(.has-tag)),
+.home-left { grid-auto-rows: var(--shortcut-h); }
 
 .shortcut-box {
   width: 100%;

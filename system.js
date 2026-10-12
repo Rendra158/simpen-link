@@ -616,6 +616,17 @@ listEl.addEventListener("wheel", (e) => {
 /* ---------- kartu shortcut ---------- */
 const cardOf = (e) => e.target.closest?.(".shortcut-box:not(.reco)");
 
+// Kartu dengan note terbuka mengambil 2 baris grid, naik jadi 3 kalau note belum muat.
+function fitNote(card) {
+    card.style.gridRow = "";
+    const note = card.querySelector(".shortcut-note");
+    if (!note || !card.classList.contains("note-open") || card.classList.contains("has-tag")) return;
+    for (const n of [2, 3]) {
+        card.style.gridRow = `span ${n}`;
+        if (note.scrollHeight <= note.clientHeight + 1) break;
+    }
+}
+
 let openTimer = null;
 gridEl.addEventListener("click", (e) => {
     const ra = e.target.closest(".reco a.stretch");   // klik kartu di panel kanan Home: catat saja, link terbuka biasa
@@ -626,7 +637,10 @@ gridEl.addEventListener("click", (e) => {
     }
     const card = cardOf(e);
     if (e.target.closest(".note-toggle")) {
-        card?.classList.toggle("note-open");
+        if (card) {
+            card.classList.toggle("note-open");
+            fitNote(card);
+        }
         return;
     }
     if (!card) {

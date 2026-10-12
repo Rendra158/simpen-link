@@ -401,29 +401,32 @@ white-space: nowrap;
 .shortcut-note { display: none; }
 
 .shortcut-box.note-open {
-height: auto;
-min-height: var(--shortcut-h);
-flex-wrap: wrap;
-align-content: center;
+height: auto;               /* tinggi mengikuti baris grid yang diambil */
+flex-direction: column;
+align-items: stretch;
+justify-content: flex-start;
 }
-.shortcut-box.has-tag.note-open { min-height: calc(var(--shortcut-h) + var(--tag-h)); }
-.shortcut-box.note-open .shortcut-main { flex: 0 0 100%; max-width: 100%; }
+.shortcut-box.has-tag.note-open {
+min-height: calc(var(--shortcut-h) + var(--tag-h));
+max-height: calc(var(--shortcut-h) * 3 + var(--tag-h));
+}
+.shortcut-box.note-open .shortcut-main { flex: none; max-width: 100%; }
 
 .shortcut-box.note-open .shortcut-note {
-display: -webkit-box;
--webkit-box-orient: vertical;
--webkit-line-clamp: var(--note-lines, 2);
-line-clamp: var(--note-lines, 2);
-flex: 0 0 100%;
+display: block;
+flex: 1 1 auto;
+min-height: 0;
 margin-top: 6px;
 padding-top: 6px;
 border-top: 1px solid var(--c-line);
 font-size: max(12px, calc(var(--shortcut-h) * 0.12));
 line-height: 1.3;
 color: var(--c-muted);
-overflow: hidden;
+overflow-y: auto;
 overflow-wrap: anywhere;
+scrollbar-width: none;
 }
+.shortcut-box.note-open .shortcut-note::-webkit-scrollbar { display: none; }
 
 .note-toggle {
 position: relative;
