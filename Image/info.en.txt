@@ -1,0 +1,135 @@
+About Simpen.Link
+
+Simpen.Link is a website for creating, saving, and organizing shortcuts to other websites so you can access them easily. All data is stored locally on your device in your browser, so you don't need an account. You can also install the website like an app and use it offline.
+
+
+1. TEXT BOX (Main Command Center)
+
+The text box is at the bottom of the screen. Type something, then press Enter or click the icon on the right side of the text box. Your input is processed according to the active mode. The text box's color and icon change to match the mode.
+
+If the text box is empty, click its icon or press the Left or Right Arrow key to switch modes.
+
+Available modes:
+
+• Add Link (blue)
+  Creates a new shortcut. Type or paste a link, such as youtube.com. You can leave out https://. The Name and Note fields are optional. If Name is empty, a name is generated automatically from the website. The shortcut is added to the currently selected list.
+
+• Add List (orange)
+  Creates a new list. Each list must have a unique name.
+
+• Search (green)
+  Searches for shortcuts by name across all lists. Each result has a small label at the top of its card showing which list it belongs to. Click the label to switch to that list.
+
+• Edit (purple)
+  Changes the link, name, or note of an existing shortcut. In this mode, a Copy button lets you copy the contents of the text box.
+
+The X button in the text box clears the text you're typing.
+
+Additional fields:
+• Name — the shortcut's name.
+• Note — a short note. This field appears above the text box when needed.
+
+
+2. LISTS
+
+Lists are groups of shortcuts displayed as a row of buttons above the text box.
+
+• Home is the default list for your most frequently used shortcuts. It can't be deleted or renamed, and it always stays first.
+• Click a list to open it. The active list is highlighted in blue.
+• Rename a list directly on its button.
+• Reorder lists by dragging and dropping them, or sort them automatically in Settings (Number / Alphabetical).
+• Deleting a list also deletes all shortcuts in it. If Delete Confirmation is enabled, you'll be asked to confirm first.
+
+
+3. SHORTCUTS (CARDS)
+
+Each shortcut appears as a card containing a logo, name, and link.
+
+• Click: Opens the link in a new tab or the current tab, depending on your Settings.
+• Double-click: Copies the link.
+• Right-click (on a phone, tap and hold): Selects the card. You can select multiple cards at once.
+• Double right-click: Edits the card.
+• Small arrow icon on a card: Shows or hides that shortcut's note.
+• Drag and drop:
+  - Drag a card onto another card to change its position.
+  - Drag a card onto another list's button to move or copy it to that list.
+  - If multiple cards are selected, they all move together.
+
+If Duplicate Shortcuts is disabled in Settings, the same link can't be added more than once to a single list.
+
+
+4. TOP BAR
+
+When nothing is selected, the top bar shows:
+• Import — imports data (see Section 5).
+• Settings — opens the settings page.
+• Number — shows the number of shortcuts in the current list. Click it to select all shortcuts in that list.
+• Info — opens a short interactive walkthrough.
+
+When a shortcut or list is selected, the top bar changes to show:
+• Number selected
+• Delete — deletes the selected items.
+• Edit — edits the selected shortcuts.
+• Export — saves the selected items to a file.
+• X — clears the selection.
+
+
+5. IMPORT & EXPORT
+
+• Export: Select shortcuts or a list, then click Export. The result is a .json file.
+• Import: Click Import and select a file. Supported formats:
+  - .json files created by Export or Backup.
+  - Browser bookmark files (.html). Each bookmark folder becomes a list (nested folders are named “Parent / Child”), and each link becomes a shortcut.
+• Invalid links are skipped automatically.
+• If a list with the same name already exists, the result depends on your Settings: create a new list or overwrite the existing one.
+
+
+6. AUTOMATIC BACKUP
+
+This feature protects your data if your browser data gets deleted. Configure it in Settings > Advanced.
+
+In Chrome, Edge, and Opera on a computer:
+• Select a backup file once. After that, the file is automatically updated whenever your data changes.
+• After restarting the browser, you may need to click once on the home page to grant permission to write to the file.
+• Available buttons: Back Up Now, Change File, and Disconnect (the file isn't deleted; it simply stops being updated).
+
+In other browsers, including most phones:
+• Backups can't be written automatically to a file, so a backup file is downloaded automatically at most once a week. You can also click “Download Backup Now.”
+
+The backup contains all your lists and shortcuts, their order, and your settings.
+
+Restoring data:
+• If your data is empty when you open the site, you'll see the message “No shortcut data found. Restore from a backup file?”
+• Click Restore and select a backup file. Or choose Start Fresh to begin with no data.
+• An existing backup won't be overwritten with empty data until you respond to that message.
+
+
+7. SETTINGS
+
+Settings are organized into several tabs and are saved automatically whenever you change them.
+
+Shortcuts
+• Shortcut Order: Custom, Name A–Z, Name Z–A, Newest, or Oldest.
+• Open Shortcuts In: New Tab or Same Tab.
+• Duplicate Shortcuts: Allow or disallow the same link more than once in a list.
+• Move Shortcuts to Another List: Cut (move) or Duplicate (copy).
+
+Lists
+• Import Lists with Duplicate Names: Create New or Overwrite Existing.
+• List Order: Custom, Number (numbers first), or Alphabetical.
+• Delete Confirmation: Show or skip the confirmation prompt before deleting.
+
+Appearance
+• Grid Columns: 1 to 4 columns. On phone screens, 3- and 4-column layouts automatically switch to 2 columns to keep cards readable.
+• Theme: Automatic (follows your device), Light, or Dark.
+
+Advanced
+• Automatic backup settings (see Section 6).
+
+
+8. QUICK TIPS
+
+• Press Enter in the text box to run a command. Press ← or → to switch modes.
+• Need to add many links at once? Import a browser bookmark file.
+• Check your backup status regularly in Settings > Advanced to keep your data safe.
+• Need help? Click Info in the top bar to replay the short walkthrough.
