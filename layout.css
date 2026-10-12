@@ -11,6 +11,7 @@
   --grid-gap: 16px;
   --shortcut-h: 90px;
   --fade-h: 160px;
+  --note-lines: 2;
 
   --bar-h: 45px;
 
@@ -84,8 +85,6 @@ html, body { height: 100%; margin: 0; }
   height: var(--shortcut-h);
   padding: calc(var(--shortcut-h) * 0.2) calc(var(--shortcut-h) * 0.22);
 }
-.shortcut-box.note-open { grid-column: span 2; }
-.shortcuts-grid[data-cols="1"] .shortcut-box.note-open { grid-column: span 1; }
 
 /* Halaman Settings: tab di dalam bar atas, isi di tengah */
 .settings-sidebar { min-width: 0; padding: 4px 2px; gap: 8px; }
@@ -190,26 +189,36 @@ html, body { height: 100%; margin: 0; }
   .shortcuts-grid[data-cols="3"],
   .shortcuts-grid[data-cols="4"] { --cols: 3; --shortcut-h: clamp(50px, calc((100vw - 40px) * 0.1933), 90px); }
 
-  /* ----- isi kartu ikut mengecil ----- */
+  /* ----- isi kartu ikut mengecil: dihitung dari LEBAR kartu, ada batas bawah & atas ----- */
+  .shortcuts-grid, .home-left, .home-reco {
+    --card-w: calc((100vw - 24px - (var(--cols) - 1) * var(--grid-gap)) / var(--cols));
+  }
+  .home-left { --cols: 2; }
+  .home-reco { --cols: 1; }
+
   .shortcut-box { padding: calc(var(--shortcut-h) * 0.16); }
-  .shortcut-top { gap: 8px; }
+  .shortcut-top { gap: 8px; height: auto; }
+  .shortcut-logo {
+    width: clamp(20px, calc(var(--card-w) * 0.17), 34px);
+    height: clamp(20px, calc(var(--card-w) * 0.17), 34px);
+  }
   .shortcut-name {
     margin-left: -2px;
-    font-size: max(9px, calc(var(--shortcut-h) * 0.2));
+    font-size: clamp(9px, calc(var(--card-w) * 0.075), 14px);
   }
   .shortcut-url {
-    margin-top: calc(var(--shortcut-h) * 0.1);
-    font-size: max(8px, calc(var(--shortcut-h) * 0.15));
+    margin-top: 4px;
+    font-size: clamp(8px, calc(var(--card-w) * 0.055), 11px);
   }
   .shortcut-box.note-open .shortcut-note {
-    margin-left: 6px;
-    padding-left: 6px;
-    font-size: max(8px, calc(var(--shortcut-h) * 0.15));
+    margin-top: 4px;
+    padding-top: 4px;
+    font-size: clamp(8px, calc(var(--card-w) * 0.055), 11px);
   }
   .note-toggle { margin-right: -6px; }
   .oc-note {
-    width: calc(var(--shortcut-h) * 0.4);
-    height: calc(var(--shortcut-h) * 0.4);
+    width: clamp(14px, calc(var(--card-w) * 0.1), 22px);
+    height: clamp(14px, calc(var(--card-w) * 0.1), 22px);
   }
 
   /* ----- bar atas ----- */
@@ -259,7 +268,6 @@ html, body { height: 100%; margin: 0; }
 .home-reco { grid-template-columns: minmax(0, 1fr); }
 .home-reco-title { font-size: 13px; font-weight: bold; color: var(--c-muted); }
 .home-lv { background: var(--c-ink); opacity: 0.5; }
-.shortcuts-grid[data-cols] .home-left .shortcut-box.note-open { grid-column: span 2; }
 
 .reco-add {
   position: absolute; top: 6px; right: 6px; z-index: 3;
@@ -271,7 +279,10 @@ html, body { height: 100%; margin: 0; }
 
 /* opsional: di HP kiri-kanan terlalu sempit, jadi ditumpuk. Hapus kalau mau tetap berdampingan */
 @media (max-width: 768px) {
-  .home-body { grid-template-columns: 1fr; }
+  .home-body {
+    grid-template-columns: 1fr;
+    --shortcut-h: clamp(60px, 19vw, 90px);   /* tinggi kartu Home ikut lebar layar */
+  }
   .home-lv { width: auto; height: 2px; }
 }
 
