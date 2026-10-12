@@ -12,6 +12,7 @@ function makeField(def) {
   select.addEventListener("change", () => {
     settings[def.key] = select.value;
     saveSettings();
+    if (def.key === "language") location.reload();   // muat ulang supaya semua teks berganti
   });
   return h("div", { class: "s-row" },
     h("label", { class: "s-label", for: id, text: def.label }),
@@ -120,7 +121,7 @@ const infoGroup = h("div", { class: "s-group s-info", "data-section": "info" });
 page.append(infoGroup);
 infoBtn.addEventListener("click", () => setActiveSection("info"));
 
-fetch("Image/info.txt", { cache: "no-cache" })
+fetch(settings.language === "en" ? "Image/info.en.txt" : "Image/info.txt", { cache: "no-cache" })
   .then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); })
   .then((t) => { infoGroup.textContent = t; })
   .catch(() => { infoGroup.textContent = "Info gagal dimuat."; });

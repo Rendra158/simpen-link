@@ -30,6 +30,9 @@ const SETTING_DEFS = [
     options: [1, 2, 3, 4].map((n) => [String(n), `${n} Kolom`]) },
   { key: "theme", section: "tampilan", label: "Tema", def: "auto",
     options: [["auto", "Otomatis (ikut perangkat)"], ["light", "Terang"], ["dark", "Gelap"]] },
+  { key: "language", section: "tampilan", label: "Bahasa / Language",
+    def: navigator.language.startsWith("id") ? "id" : "en",
+    options: [["id", "Indonesia"], ["en", "English"]] },
 ];
 
 /* ---------- helper ---------- */
@@ -98,4 +101,126 @@ function saveSettings() {
   } catch {
     alert("Pengaturan gagal disimpan (penyimpanan penuh atau diblokir).");
   }
+}
+
+/* ---------- bahasa: teks Indonesia = kunci, Inggris = terjemahan ---------- */
+const EN = {
+  // Settings
+  "Bahasa / Language": "Bahasa / Language",
+  "Tampilan": "Display",
+  "Aktif": "On",
+  "Nonaktif": "Off",
+  "Urutan Shortcut": "Shortcut Order",
+  "Nama A–Z": "Name A–Z",
+  "Nama Z–A": "Name Z–A",
+  "Terbaru": "Newest",
+  "Terlama": "Oldest",
+  "Urutan Shortcut Pin": "Pinned Shortcut Order",
+  "Buka Shortcut di": "Open Shortcuts in",
+  "Tab Baru": "New Tab",
+  "Tab yang Sama": "Same Tab",
+  "Shortcut Duplikat": "Duplicate Shortcuts",
+  "Pindah Shortcut ke List Lain": "Move Shortcut to Another List",
+  "Cut (Dipindah)": "Cut (Move)",
+  "Duplikat (Disalin)": "Duplicate (Copy)",
+  "Import List Bernama Sama": "Import Lists with Same Name",
+  "Buat Baru": "Create New",
+  "Timpa yang Ada": "Overwrite Existing",
+  "Urutan List": "List Order",
+  "Konfirmasi Penghapusan": "Confirm Deletion",
+  "Kolom Grid": "Grid Columns",
+  "Tema": "Theme",
+  "Otomatis (ikut perangkat)": "Auto (follow device)",
+  "Terang": "Light",
+  "Gelap": "Dark",
+  "Pengaturan gagal disimpan (penyimpanan penuh atau diblokir).": "Settings could not be saved (storage full or blocked).",
+  // Advanced / backup
+  "Backup Otomatis": "Automatic Backup",
+  "Pilih file backup": "Choose backup file",
+  "Backup sekarang": "Back up now",
+  "Unduh backup sekarang": "Download backup now",
+  "Ganti file": "Change file",
+  "Putuskan": "Disconnect",
+  "Gagal memilih file.": "Failed to choose file.",
+  "Putuskan file backup? File-nya tidak dihapus, hanya tidak diperbarui lagi.": "Disconnect the backup file? The file is not deleted, it just won't be updated anymore.",
+  "Browser ini tidak bisa menulis file otomatis. Backup diunduh otomatis maksimal seminggu sekali.": "This browser can't write files automatically. A backup is downloaded automatically at most once a week.",
+  "Belum ada file backup. Pilih file, lalu backup berjalan otomatis setiap ada perubahan.": "No backup file yet. Choose a file, then backups run automatically on every change.",
+  "Data shortcut kosong. Pulihkan dari file backup?": "Shortcut data is empty. Restore from a backup file?",
+  "Pulihkan": "Restore",
+  "Mulai baru": "Start fresh",
+  "File backup lama akan ditimpa begitu kamu menambah shortcut. Lanjut?": "The old backup file will be overwritten as soon as you add a shortcut. Continue?",
+  "File backup tidak valid.": "Invalid backup file.",
+  "Backup dipulihkan.": "Backup restored.",
+  "Gagal memulihkan backup.": "Failed to restore backup.",
+  "Info gagal dimuat.": "Failed to load info.",
+  // Halaman utama
+  "Data gagal disimpan (penyimpanan penuh atau diblokir).": "Data could not be saved (storage full or blocked).",
+  "URL tidak valid.": "Invalid URL.",
+  "Shortcut dengan URL ini sudah ada di list.": "A shortcut with this URL already exists in the list.",
+  "List dengan nama itu sudah ada.": "A list with that name already exists.",
+  "Nama list sudah dipakai.": "That list name is already in use.",
+  "File tidak valid.": "Invalid file.",
+  "Tidak ada bookmark di file ini.": "No bookmarks found in this file.",
+  "Belum ada shortcut.": "No shortcuts yet.",
+  "Belum ada rekomendasi.": "No recommendations yet.",
+  "Tidak ada yang cocok.": "No matches.",
+  "Rekomendasi": "Recommended",
+  "Sering dibuka": "Most opened",
+  "Baru ditambahkan": "Recently added",
+  "Terakhir dipakai": "Recently used",
+  "Belum ada data.": "No data yet.",
+  // Tour
+  "Lewati": "Skip",
+  "Kembali": "Back",
+  "Lanjut": "Next",
+  "Selesai": "Done",
+};
+
+// teks yang mengandung angka/nama
+const EN_RE = [
+  [/^Hapus (\d+) shortcut\?$/, "Delete $1 shortcuts?"],
+  [/^Hapus (\d+) list\?$/, "Delete $1 lists?"],
+  [/^(\d+) Kolom$/, "$1 Columns"],
+  [/^Kau memiliki (\d+) shortcut saat ini$/, "You currently have $1 shortcuts"],
+  [/^(\d+) shortcut dilewati karena URL sama sudah ada di list tujuan\.$/, "$1 shortcuts skipped (same URL already in the target list)."],
+  [/^(\d+) link dari (\d+) list diimpor\.(?: (\d+) dilewati \(URL tidak valid\)\.)?$/,
+    (m, a, b, c) => `${a} links from ${b} lists imported.` + (c ? ` ${c} skipped (invalid URL).` : "")],
+  [/^File: (.*) — aktif$/, "File: $1 — active"],
+  [/^File: (.*) — perlu izin \(buka halaman utama, klik sekali, lalu izinkan\)$/, "File: $1 — permission needed (open the main page, click once, then allow)"],
+];
+
+const tr = (s) => {
+  if (settings.language !== "en" || typeof s !== "string") return s;
+  if (EN[s]) return EN[s];
+  for (const [re, to] of EN_RE) if (re.test(s)) return s.replace(re, to);
+  return s;
+};
+
+document.documentElement.lang = settings.language;
+
+if (settings.language === "en") {
+  // alert & confirm otomatis diterjemahkan
+  const _alert = window.alert.bind(window), _confirm = window.confirm.bind(window);
+  window.alert = (m) => _alert(tr(m));
+  window.confirm = (m) => _confirm(tr(m));
+
+  // teks di halaman otomatis diterjemahkan (data buatan pengguna dilewati)
+  const SKIP = ".shortcut-name, .shortcut-url, .shortcut-note, .list-tag, .rename-input, .List button, textarea, script, style";
+  const fix = (root) => {
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let n; (n = w.nextNode()); ) {
+      const p = n.parentElement;
+      if (!p || p.closest(SKIP)) continue;
+      const v = n.nodeValue.trim(), out = tr(v);
+      if (v && out !== v) n.nodeValue = n.nodeValue.replace(v, () => out);
+    }
+  };
+  const run = () => {
+    fix(document.body);
+    new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => {
+      if (n.nodeType === 3) { if (n.parentElement) fix(n.parentElement); }
+      else if (n.nodeType === 1) fix(n);
+    }))).observe(document.body, { childList: true, subtree: true });
+  };
+  document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", run) : run();
 }

@@ -445,9 +445,43 @@ fetch("recommend.json", { cache: "no-cache" })
     })
     .catch(() => {});
 
+const VIEW_KEY = "ShortcutHomeView";
+const HOME_VIEWS = [
+    ["reco", "Rekomendasi"], ["frequent", "Sering dibuka"], ["newest", "Baru ditambahkan"],
+    ["recent", "Terakhir dipakai"], ["pin", "Pin"],
+];
+const getHomeMode = () => {
+    const v = localStorage.getItem(VIEW_KEY);
+    return HOME_VIEWS.some(([k]) => k === v) ? v : "reco";
+};
+
+function panelItems(mode) {
+    const all = lists.flatMap((l) => l.items.map((item) => ({ item, listId: l.id })));
+    if (mode === "frequent") return all.filter((r) => r.item.opens > 0).sort((a, b) => b.item.opens - a.item.opens).slice(0, 10);
+    if (mode === "newest") return [...all].sort((a, b) => b.item.added - a.item.added).slice(0, 10);
+    if (mode === "recent") return all.filter((r) => r.item.lastOpen > 0).sort((a, b) => b.item.lastOpen - a.item.lastOpen).slice(0, 10);
+    const isNum = (r) => /^\d/.test(r.item.name);
+    return all.filter((r) => r.item.pinned).sort((a, b) =>
+        isNum(a) !== isNum(b) ? (isNum(a) ? 1 : -1) : cmpText(a.item.name, b.item.name));   // huruf A-Z dulu, lalu angka 0-9
+}
+
 function recoCards() {
+    const mode = getHomeMode();
+    const empty = (text) => [h("div", { class: "shortcuts-empty", text })];
+
+    if (mode !== "reco") {
+        const rows = panelItems(mode);
+        if (!rows.length) return empty("Belum ada data.");
+        return rows.map(({ item, listId }) => {
+            const card = makeCard({ ...item, note: "" }, listId);
+            card.classList.add("reco");
+            card.draggable = false;
+            return card;
+        });
+    }
+
     const shown = recoItems.filter((r) => !hasDuplicate(currentId, r.url));   // yang sudah ada di Home disembunyikan
-    if (!shown.length) return [h("div", { class: "shortcuts-empty", text: "Belum ada rekomendasi." })];
+    if (!shown.length) return empty("Belum ada rekomendasi.");
     return shown.map((item) => {
         const card = makeCard({ ...item, note: "" }, "reco");
         card.classList.add("reco");
@@ -464,6 +498,13 @@ function recoCards() {
 
 function homeView(cards) {
     const total = lists.reduce((n, l) => n + l.items.length, 0);   // total semua list
+    const sel = h("select", { class: "home-reco-select", "aria-label": "Panel" },
+        ...HOME_VIEWS.map(([v, label]) => h("option", { value: v, text: label })));
+    sel.value = getHomeMode();
+    sel.addEventListener("change", () => {
+        try { localStorage.setItem(VIEW_KEY, sel.value); } catch {}
+        renderShortcuts();
+    });
     return [
         h("div", { class: "home-head" },
             h("h1", { class: "home-title", text: "Simpen.Link" }),
@@ -471,7 +512,7 @@ function homeView(cards) {
         h("div", { class: "home-body" },
             h("div", { class: "home-left" }, ...cards),
             h("div", { class: "home-lv" }),
-            h("div", { class: "home-reco" }, h("div", { class: "home-reco-title", text: "Rekomendasi" }), ...recoCards())),
+            h("div", { class: "home-reco" }, sel, ...recoCards())),
     ];
 }
 
@@ -577,6 +618,12 @@ const cardOf = (e) => e.target.closest?.(".shortcut-box:not(.reco)");
 
 let openTimer = null;
 gridEl.addEventListener("click", (e) => {
+    const ra = e.target.closest(".reco a.stretch");   // klik kartu di panel kanan Home: catat saja, link terbuka biasa
+    if (ra) {
+        const c = ra.closest(".shortcut-box");
+        trackOpen(c.dataset.list, c.dataset.id);
+        return;
+    }
     const card = cardOf(e);
     if (e.target.closest(".note-toggle")) {
         card?.classList.toggle("note-open");
@@ -594,15 +641,18 @@ gridEl.addEventListener("click", (e) => {
         return;
     }
     // Klik 1x = buka link (ditunda sebentar), klik 2x = salin link
-    if (!e.target.closest("a.stretch") || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (!e.target.closest("a.stretch")) return;
+    const listId = card.dataset.list, itemId = card.dataset.id;
+    if (e.ctrlKey || e.metaKey || e.shiftKey) { trackOpen(listId, itemId); return; }
     e.preventDefault();
     clearTimeout(openTimer);
-    const item = findItem(card.dataset.list, card.dataset.id);
+    const item = findItem(listId, itemId);
     if (!item) return;
     if (e.detail > 1) {
         copyText(item.url).then((ok) => flashCopied(card, ok));
     } else {
         openTimer = setTimeout(() => {
+            trackOpen(listId, itemId);
             if (settings.openIn === "new") window.open(item.url, "_blank", "noopener,noreferrer");
             else window.location.href = item.url;
         }, 250);

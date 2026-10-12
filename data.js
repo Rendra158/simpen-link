@@ -43,6 +43,8 @@ function cleanItem(r) {
         note: typeof r.note === "string" ? r.note : "",
         added: Number.isFinite(r.added) ? r.added : Date.now(),
         pinned: r.pinned === true,
+        opens: Number.isFinite(r.opens) ? r.opens : 0,
+        lastOpen: Number.isFinite(r.lastOpen) ? r.lastOpen : 0,
     };
 }
 function cleanList(r) {
@@ -196,6 +198,14 @@ function setPinned(listId, itemIds, value) {
     const list = findList(listId);
     if (!list) return;
     list.items.forEach((i) => { if (itemIds.includes(i.id)) i.pinned = value; });
+    saveLists();
+}
+
+function trackOpen(listId, itemId) {
+    const item = findItem(listId, itemId);
+    if (!item) return;
+    item.opens = (item.opens || 0) + 1;
+    item.lastOpen = Date.now();
     saveLists();
 }
 

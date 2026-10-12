@@ -1,21 +1,44 @@
 /* spotlight.js — panduan singkat (tour). Butuh store.js (h). */
 const TOUR_KEY = "ShortcutTourDone";
 
+const L = (v) => (v && typeof v === "object" ? v[settings.language] || v.id : v);
+
 const TOUR_STEPS = [
-  { target: null, title: "Selamat datang di Simpen.Link",
-    text: "Website untuk membuat, menyimpan, dan mengatur shortcut ke berbagai website.\nIkuti panduan singkat ini, atau lewati kapan saja." },
-  { target: ".textbox-wrapper", title: "Textbox",
-    text: "Pusat semua perintah. Ketik sesuatu lalu tekan Enter. Isinya diproses sesuai mode yang aktif (warna dan ikonnya berubah)." },
-  { target: ".mode-icon-box", title: "Ganti Mode",
-    text: "Klik ikon ini. Jika textbox berisi teks, perintah dijalankan. Jika kosong, mode berpindah (bisa juga dengan tombol ← →):\n• Add Link: buat shortcut. Nama & catatan boleh dikosongkan, nama dibuat otomatis dari website.\n• Add List: buat list baru.\n• Search: cari shortcut dari semua list." },
-  { target: ".List", title: "List",
-    text: "Kelompokkan shortcut ke dalam list. Home untuk yang sering dipakai.\n..."},
-  { target: ".shortcuts-grid", title: "Shortcut",
-    text: "Klik untuk membuka, dobel-klik untuk menyalin link.\nKlik kanan (di HP: tahan) untuk memilih. Dobel klik kanan untuk mengedit.\nSeret (drag & drop) untuk mengubah urutan atau memindahkan ke list lain." },
-  { target: ".bar .bar-group", title: "Import, Settings & Info",
-    text: "Import untuk memasukkan data, Export (muncul saat list dipilih) untuk mencadangkan. Settings untuk mengatur urutan, tampilan, dan perilaku aplikasi." },
-  { target: "#more-info", title: "Butuh bantuan lagi?",
-    text: "Klik tombol Info kapan saja untuk membuka panduan ini lagi." },
+  { target: null,
+    title: { id: "Selamat datang di Simpen.Link", en: "Welcome to Simpen.Link" },
+    text: {
+      id: "Website untuk membuat, menyimpan, dan mengatur shortcut ke berbagai website.\nIkuti panduan singkat ini, atau lewati kapan saja.",
+      en: "A website to create, save, and organize shortcuts to your favorite websites.\nFollow this short guide, or skip it any time." } },
+  { target: ".textbox-wrapper",
+    title: { id: "Textbox", en: "Textbox" },
+    text: {
+      id: "Pusat semua perintah. Ketik sesuatu lalu tekan Enter. Isinya diproses sesuai mode yang aktif (warna dan ikonnya berubah).",
+      en: "The center of all commands. Type something and press Enter. It is processed according to the active mode (its color and icon change)." } },
+  { target: ".mode-icon-box",
+    title: { id: "Ganti Mode", en: "Switch Mode" },
+    text: {
+      id: "Klik ikon ini. Jika textbox berisi teks, perintah dijalankan. Jika kosong, mode berpindah (bisa juga dengan tombol ← →):\n• Add Link: buat shortcut. Nama & catatan boleh dikosongkan, nama dibuat otomatis dari website.\n• Add List: buat list baru.\n• Search: cari shortcut dari semua list.",
+      en: "Click this icon. If the textbox has text, the command runs. If it is empty, the mode switches (you can also use the ← → keys):\n• Add Link: create a shortcut. Name & note are optional; the name is made automatically from the website.\n• Add List: create a new list.\n• Search: search shortcuts across all lists." } },
+  { target: ".List",
+    title: { id: "List", en: "List" },
+    text: {
+      id: "Kelompokkan shortcut ke dalam list. Home untuk yang sering dipakai.\n...",
+      en: "Group shortcuts into lists. Home is for the ones you use often.\n..." } },
+  { target: ".shortcuts-grid",
+    title: { id: "Shortcut", en: "Shortcut" },
+    text: {
+      id: "Klik untuk membuka, dobel-klik untuk menyalin link.\nKlik kanan (di HP: tahan) untuk memilih. Dobel klik kanan untuk mengedit.\nSeret (drag & drop) untuk mengubah urutan atau memindahkan ke list lain.",
+      en: "Click to open, double-click to copy the link.\nRight-click (on phones: press and hold) to select. Double right-click to edit.\nDrag & drop to reorder or move to another list." } },
+  { target: ".bar .bar-group",
+    title: { id: "Import, Settings & Info", en: "Import, Settings & Info" },
+    text: {
+      id: "Import untuk memasukkan data, Export (muncul saat list dipilih) untuk mencadangkan. Settings untuk mengatur urutan, tampilan, dan perilaku aplikasi.",
+      en: "Import to bring in data, Export (appears when a list is selected) to back up. Settings to adjust ordering, appearance, and app behavior." } },
+  { target: "#more-info",
+    title: { id: "Butuh bantuan lagi?", en: "Need more help?" },
+    text: {
+      id: "Klik tombol Info kapan saja untuk membuka panduan ini lagi.",
+      en: "Click the Info button any time to open this guide again." } },
 ];
 
 let tour = null;   // { idx, blocker, spot, tip, onKey, onResize }
@@ -41,8 +64,8 @@ function startSpotlight() {
   const render = () => {
     const step = TOUR_STEPS[tour.idx];
     const last = tour.idx === TOUR_STEPS.length - 1;
-    title.textContent = step.title;
-    text.textContent = step.text;
+    title.textContent = L(step.title);
+    text.textContent = L(step.text);
     count.textContent = `${tour.idx + 1}/${TOUR_STEPS.length}`;
     back.style.display = tour.idx === 0 ? "none" : "";
     skip.style.display = last ? "none" : "";

@@ -274,3 +274,19 @@ html, body { height: 100%; margin: 0; }
   .home-body { grid-template-columns: 1fr; }
   .home-lv { width: auto; height: 2px; }
 }
+
+.home-reco-select {
+  grid-column: 1 / -1;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1.5px solid var(--c-line);
+  border-radius: 8px;
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+}
+@media (max-width: 768px) {
+  .home-reco-select { font-size: 12px; padding: 4px 6px; }
+}
