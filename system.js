@@ -911,6 +911,7 @@ window.addEventListener("pageshow", (e) => { if (e.persisted) syncFromStorage();
 
 /* ---------- mulai ---------- */
 gridEl.dataset.cols = settings.gridCols;
+navigator.storage?.persist?.();
 setMode(0);
 
 /* ---------- lebar list menyesuaikan: geser per tombol, tidak ada yang terpotong ---------- */

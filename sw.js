@@ -1,4 +1,5 @@
-const CACHE = "simpenlink-v2";
+const CACHE = "simpenlink-v5";   // naikkan angkanya tiap kali daftar ASSETS berubah
+const TIMEOUT = 4000;            // jaringan yang diam selama ini dianggap gagal
 const ASSETS = [
   "./", "index.html", "settings.html", "manifest.json", "recommend.json",
   "base.css", "layout.css", "settings.css", "spotlight.css",
@@ -11,12 +12,22 @@ const ASSETS = [
   "Image/icon-192.png", "Image/icon-512.png"
 ];
 
+// Respons hasil redirect ditolak browser saat dipakai membuka halaman (ERR_FAILED),
+// jadi dibungkus ulang menjadi respons biasa.
+async function clean(res) {
+  if (!res.redirected) return res;
+  return new Response(await res.blob(), { status: res.status, statusText: res.statusText, headers: res.headers });
+}
+
 self.addEventListener("install", (e) => {
-  // Satu file yang hilang tidak membatalkan pemasangan (beda dengan addAll)
-  e.waitUntil(
-    caches.open(CACHE).then((c) =>
-      Promise.allSettled(ASSETS.map((a) => c.add(a))))
-  );
+  e.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    // Satu file yang hilang tidak membatalkan pemasangan. cache:"reload" = ambil yang segar.
+    await Promise.allSettled(ASSETS.map(async (a) => {
+      const res = await fetch(new Request(a, { cache: "reload" }));
+      if (res.ok) await cache.put(a, await clean(res));
+    }));
+  })());
   self.skipWaiting();
 });
 
@@ -28,20 +39,36 @@ self.addEventListener("activate", (e) => {
   self.clients.claim();
 });
 
-// Network-first: selalu ambil versi terbaru, cache hanya cadangan offline.
-// Hanya file dari situs sendiri yang berhasil (status 200) yang disimpan.
+// Network-first: versi terbaru dulu, cache sebagai cadangan offline.
+async function handle(e) {
+  const req = e.request;
+  const cache = await caches.open(CACHE);
+
+  if (navigator.onLine !== false) {   // jelas-jelas offline: langsung ke cache
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), TIMEOUT);
+      const res = await fetch(req, { signal: ctrl.signal });
+      clearTimeout(timer);
+      if (res.ok) {
+        const copy = res.clone();
+        e.waitUntil((async () => cache.put(req, await clean(copy)))());
+      }
+      return res;
+    } catch {}
+  }
+
+  const hit = await cache.match(req, { ignoreSearch: true });
+  if (hit) return hit;
+  if (req.mode === "navigate") {
+    const page = (await cache.match("./")) || (await cache.match("index.html"));
+    if (page) return page;
+  }
+  return Response.error();
+}
+
 self.addEventListener("fetch", (e) => {
-  if (e.request.method !== "GET") return;
-  const sameOrigin = new URL(e.request.url).origin === self.location.origin;
-  e.respondWith(
-    fetch(e.request)
-      .then((res) => {
-        if (sameOrigin && res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, copy));
-        }
-        return res;
-      })
-      .catch(() => caches.match(e.request).then((r) => r || Response.error()))
-  );
+  const { request } = e;
+  if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
+  e.respondWith(handle(e));
 });
