@@ -45,13 +45,19 @@ function cleanItem(r) {
         pinned: r.pinned === true,
         opens: Number.isFinite(r.opens) ? r.opens : 0,
         lastOpen: Number.isFinite(r.lastOpen) ? r.lastOpen : 0,
+        pinOrder: Number.isFinite(r.pinOrder) ? r.pinOrder : 0,
+        
     };
 }
 function cleanList(r) {
     if (!r || typeof r.name !== "string" || !Array.isArray(r.items)) return null;
     const isDefault = r.isDefault === true;
+    // list lama belum punya "added": id dari uid() menyimpan waktu pembuatan (base36)
+    const fromId = typeof r.id === "string" ? parseInt(r.id.slice(0, 8), 36) : NaN;
+    const added = Number.isFinite(r.added) ? r.added : (fromId > 1e12 && fromId < 4e12 ? fromId : 0);
     return {
         id: typeof r.id === "string" ? r.id : uid(),
+        added,
         name: isDefault ? "Home" : r.name,
         isDefault,
         items: r.items.map(cleanItem).filter(Boolean),
@@ -114,15 +120,15 @@ const findList = (id) => lists.find((l) => l.id === id);
 const findItem = (listId, itemId) => findList(listId)?.items.find((i) => i.id === itemId);
 function getOrderedLists() {
     const rest = lists.filter((l) => !l.isDefault);
-    if (settings.listSort !== "custom") {
-        const isNum = (s) => /^\d/.test(s);
-        const numFirst = settings.listSort === "number" ? 1 : -1;
-        rest.sort((a, b) =>
-            isNum(a.name) !== isNum(b.name) ? (isNum(a.name) ? -1 : 1) * numFirst : cmpText(a.name, b.name));
-    }
+    const s = settings.listSort;
+    if (s === "az") rest.sort((a, b) => cmpText(a.name, b.name));
+    else if (s === "za") rest.sort((a, b) => cmpText(b.name, a.name));
+    else if (s === "newest") rest.sort((a, b) => b.added - a.added);
+    else if (s === "oldest") rest.sort((a, b) => a.added - b.added);
     return [...lists.filter((l) => l.isDefault), ...rest];
 }
 function sortPinned(rows) {
+    if (settings.pinSort === "custom") return rows;
     const s = settings.pinSort;
     const byName = (a, b) => cmpText(a.item.name, b.item.name);
     const isNum = (r) => /^\d/.test(r.item.name);
@@ -156,7 +162,7 @@ const nameTaken = (name, exceptId = null) => lists.some((l) => l.id !== exceptId
 function addList(name) {
     name = name.trim();
     if (!name || nameTaken(name)) return false;
-    lists.push({ id: uid(), name, isDefault: false, items: [] });
+    lists.push({ id: uid(), name, isDefault: false, added: Date.now(), items: [] });
     saveLists();
     return true;
 }
@@ -201,6 +207,15 @@ function setPinned(listId, itemIds, value) {
     saveLists();
 }
 
+// Simpan urutan pin di panel kanan Home (hanya dipakai saat pinSort = custom)
+function setPinOrder(ids) {
+    lists.forEach((l) => l.items.forEach((i) => {
+        const n = ids.indexOf(i.id);
+        if (n !== -1) i.pinOrder = n + 1;
+    }));
+    saveLists();
+}
+
 function trackOpen(listId, itemId) {
     const item = findItem(listId, itemId);
     if (!item) return;
@@ -215,9 +230,11 @@ function trackOpen(listId, itemId) {
 function reorderShortcuts(listId, fromIds, toId) {
     const list = findList(listId);
     if (!list) return;
-    const isPinned = (id) => !!list.items.find((i) => i.id === id)?.pinned;
-    if (isPinned(toId)) return;
-    fromIds = fromIds.filter((id) => !isPinned(id));
+    const target = list.items.find((i) => i.id === toId);
+    if (!target) return;
+    // pin hanya bisa dipindah ke sesama pin (saat urutan pin = Custom), non-pin ke sesama non-pin
+    if (target.pinned && settings.pinSort !== "custom") return;
+    fromIds = fromIds.filter((id) => !!list.items.find((i) => i.id === id)?.pinned === !!target.pinned);
     const moving = list.items.filter((i) => fromIds.includes(i.id));
     const toIdx = list.items.findIndex((i) => i.id === toId);
     if (!moving.length || toIdx === -1 || moving.some((i) => i.id === toId)) return;
@@ -279,7 +296,7 @@ function importLists(obj) {
         skipped += arr.length - items.length;
         const same = settings.importMode === "overwrite" ? lists.find((l) => l.name === name.trim()) : null;
         if (same) same.items = items;
-        else lists.push({ id: uid(), name: uniqueName(name), isDefault: false, items });
+        else lists.push({ id: uid(), name: uniqueName(name), isDefault: false, added: Date.now(), items });
     });
     saveLists();
     return { count: entries.length, skipped };

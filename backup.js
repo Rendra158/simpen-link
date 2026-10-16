@@ -12,6 +12,7 @@
 
     let handle = null;          // pegangan ke file backup
     let restorePending = false; // data kosong & belum dipulihkan/diabaikan: JANGAN timpa backup
+        let asked = false;          // konfirmasi timpa backup sudah ditanyakan di sesi ini
     let timer = null;
 
     /* ---------- data ---------- */
@@ -77,12 +78,18 @@
     /* ---------- tulis backup ---------- */
     async function writeBackup() {
         // PENGAMAN: jangan pernah menimpa backup dengan data kosong
-        if (!handle || restorePending || isEmpty()) return;
+        if (!handle || isEmpty()) return;
         if (!(await perm(false))) return;   // izin diminta di klik pertama (lihat init)
+        if (restorePending) {               // data kosong saat dibuka, ada file backup
+            if (asked) return;
+            asked = true;
+            if (!confirm("Ada file backup tapi data kosong. Menambah shortcut akan menimpa file backup. Lanjut? (Batal = pulihkan lewat Settings > Advanced)")) return;
+            restorePending = false;
+        }
         try {
             const snap = snapshot();
             if (!snapshotOk(snap)) return;
-            const w = await handle.createWritable();   // ditulis ke file sementara, baru diganti saat close()
+            const w = await handle.createWritable();
             await w.write(JSON.stringify(snap, null, 2));
             await w.close();
         } catch (err) {
@@ -120,80 +127,6 @@
         if (this === localStorage && key === DATA_KEY) scheduleBackup();
     };
 
-    /* ---------- pulihkan ---------- */
-    async function restore(b) {
-        restorePending = false;
-        if (b && b.app === APP && typeof b.dataRaw === "string" && countItems(b.lists) > 0) {
-            // backup penuh: kembalikan data persis + pengaturan
-            JSON.parse(b.dataRaw);   // validasi, error kalau rusak
-            if (typeof b.settingsRaw === "string") {
-                JSON.parse(b.settingsRaw);
-                localStorage.setItem(SETTINGS_KEY, b.settingsRaw);
-                settings = loadSettings();
-                applyTheme();
-            }
-            localStorage.setItem(DATA_KEY, b.dataRaw);
-            syncFromStorage();   // dari system.js: muat ulang & render
-        } else if (countItems(b) > 0 && importLists(b)) {
-            // file Export biasa (tanpa pengaturan)
-            renderLists();
-            renderShortcuts();
-        } else {
-            restorePending = FS;
-            alert("File backup tidak valid.");
-            return false;
-        }
-        document.querySelector("#backup-banner")?.remove();
-        alert("Backup dipulihkan.");
-        return true;
-    }
-
-    async function restoreFlow() {
-        if (!FS) { document.querySelector("#import-file-input").click(); return; }   // pakai Import biasa
-        try {
-            // 1) file backup yang pegangannya masih tersimpan
-            if (handle && (await perm(true))) {
-                const b = JSON.parse(await (await handle.getFile()).text());
-                if (await restore(b)) return;
-            }
-            // 2) pegangan hilang (data browser terhapus): pilih filenya lagi
-            const [fh] = await window.showOpenFilePicker({ types: FILE_TYPES });
-            const b = JSON.parse(await (await fh.getFile()).text());
-            if (!(await restore(b))) return;
-            handle = fh;   // backup berikutnya otomatis ke file yang sama
-            await idbSet(HANDLE_KEY, handle).catch(() => {});
-            await perm(true);
-            scheduleBackup();
-        } catch (err) {
-            if (err.name !== "AbortError") { console.error(err); alert("Gagal memulihkan backup."); }
-        }
-    }
-
-    function showBanner() {
-        const bar = h("div", {
-            id: "backup-banner",
-            style: "position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9999;" +
-                "display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;" +
-                "padding:10px 14px;border-radius:12px;background:#222;color:#fff;font:14px system-ui,sans-serif;" +
-                "box-shadow:0 4px 20px rgba(0,0,0,.35);max-width:calc(100% - 24px)",
-        });
-        const mk = (text, fn) => {
-            const b = h("button", { type: "button", text, style: "padding:6px 12px;border-radius:8px;border:0;cursor:pointer;font:inherit" });
-            b.addEventListener("click", fn);
-            return b;
-        };
-        bar.append(
-            h("span", { text: "Data shortcut kosong. Pulihkan dari file backup?" }),
-            mk("Pulihkan", restoreFlow),
-            mk("Mulai baru", () => {
-                if (FS && handle && !confirm("File backup lama akan ditimpa begitu kamu menambah shortcut. Lanjut?")) return;
-                restorePending = false;
-                bar.remove();
-            })
-        );
-        document.body.append(bar);
-    }
-
     /* ---------- mulai ---------- */
     (async function init() {
         navigator.storage?.persist?.().catch(() => {});   // minta browser jangan hapus data otomatis
@@ -213,8 +146,7 @@
         }
 
         if (isEmpty()) {
-            restorePending = FS;   // selama banner belum dijawab, backup lama tidak boleh ditimpa
-            showBanner();
+            restorePending = FS;   // jangan timpa backup lama sebelum ada konfirmasi
             return;
         }
         if (now) await (FS ? writeBackup() : Promise.resolve(downloadBackup()));

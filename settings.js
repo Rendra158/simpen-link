@@ -76,26 +76,60 @@ function makeAdvancedRows() {
     refresh();
   }
 
+  async function restore() {
+    try {
+      let text, fh = null;
+      if (FS) {
+        [fh] = await window.showOpenFilePicker({ types: [{ description: "JSON File", accept: { "application/json": [".json"] } }] });
+        text = await (await fh.getFile()).text();
+      } else {
+        const file = await new Promise((res) => {
+          const inp = h("input", { type: "file", accept: ".json,application/json" });
+          inp.addEventListener("change", () => res(inp.files[0] || null));
+          inp.click();
+        });
+        if (!file) return;
+        text = await file.text();
+      }
+      const b = JSON.parse(text);
+      if (b?.app !== "simpen.link" || typeof b.dataRaw !== "string") { alert("File backup tidak valid."); return; }
+      JSON.parse(b.dataRaw);
+      if (typeof b.settingsRaw === "string") JSON.parse(b.settingsRaw);
+      if (!confirm("Data saat ini akan diganti dengan isi file backup. Lanjut?")) return;
+      if (typeof b.settingsRaw === "string") localStorage.setItem(SETTINGS_KEY, b.settingsRaw);
+      localStorage.setItem("ShortcutData2", b.dataRaw);   // sama dengan DATA_KEY di data.js
+      if (fh) {   // backup berikutnya otomatis ke file ini
+        await bkRun("readwrite", (s) => s.put(fh, BK.key)).catch(() => {});
+        await fh.requestPermission({ mode: "readwrite" }).catch(() => {});
+      }
+      alert("Backup dipulihkan.");
+      window.location.href = "index.html";
+    } catch (err) {
+      if (err.name !== "AbortError") { console.error(err); alert("Gagal memulihkan backup."); }
+    }
+  }
+  const restoreBtn = btn("Pulihkan dari backup", restore);
+
   async function refresh() {
     actions.replaceChildren();
     if (!FS) {
       status.textContent = "Browser ini tidak bisa menulis file otomatis. Backup diunduh otomatis maksimal seminggu sekali.";
-      actions.append(btn("Unduh backup sekarang", backupNow));
+      actions.append(btn("Unduh backup sekarang", backupNow), restoreBtn);
       return;
     }
     let handle = null;
     try { handle = await bkRun("readonly", (s) => s.get(BK.key)); } catch {}
     if (!handle) {
       status.textContent = "Belum ada file backup. Pilih file, lalu backup berjalan otomatis setiap ada perubahan.";
-      actions.append(btn("Pilih file backup", pick));
+      actions.append(btn("Pilih file backup", pick), restoreBtn);
       return;
     }
     let ok = false;
     try { ok = (await handle.queryPermission({ mode: "readwrite" })) === "granted"; } catch {}
     status.textContent = `File: ${handle.name} — ` + (ok ? "aktif" : "perlu izin (buka halaman utama, klik sekali, lalu izinkan)");
-    actions.append(btn("Backup sekarang", backupNow), btn("Ganti file", pick), btn("Putuskan", unlink));
+    actions.append(btn("Backup sekarang", backupNow), btn("Ganti file", pick), btn("Putuskan", unlink), restoreBtn);
   }
-
+  
   refresh();
   return [
     h("div", { class: "s-row" }, h("div", { class: "s-label", text: "Backup Otomatis" }), actions),

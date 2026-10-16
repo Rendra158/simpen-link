@@ -305,3 +305,6 @@ html, body { height: 100%; margin: 0; }
 @media (max-width: 768px) {
   .home-reco-select { font-size: 12px; padding: 4px 6px; }
 }
+
+.List { user-select: none; }
+.List.grabbing, .List.grabbing button { cursor: grabbing; }

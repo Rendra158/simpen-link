@@ -2,6 +2,7 @@
 
 const SETTINGS_KEY = "ShortcutSettings";
 const ON_OFF = [["on", "Aktif"], ["off", "Nonaktif"]];
+const YES_NO = [["on", "Ya"], ["off", "Tidak"]];
 
 const SECTIONS = [
   { id: "shortcut", label: "Shortcut" },
@@ -15,23 +16,25 @@ const SETTING_DEFS = [
   { key: "shortcutSort", section: "shortcut", label: "Urutan Shortcut", def: "custom",
     options: [["custom", "Custom"], ["az", "Nama A–Z"], ["za", "Nama Z–A"], ["newest", "Terbaru"], ["oldest", "Terlama"]] },
   { key: "pinSort", section: "shortcut", label: "Urutan Shortcut Pin", def: "az",
-    options: [["az", "A–Z"], ["za", "Z–A"], ["09", "0–9"], ["90", "9–0"]] },
+    options: [["az", "A–Z"], ["za", "Z–A"], ["09", "0–9"], ["90", "9–0"], ["custom", "Custom"]] },
   { key: "openIn", section: "shortcut", label: "Buka Shortcut di", def: "new",
     options: [["new", "Tab Baru"], ["same", "Tab yang Sama"]] },
+  { key: "showLink", section: "shortcut", label: "Link ditampilkan", def: "on", options: YES_NO },
+  { key: "alwaysNote", section: "shortcut", label: "Selalu tampilkan note", def: "off", options: YES_NO },
   { key: "allowDuplicate", section: "shortcut", label: "Shortcut Duplikat", def: "on", options: ON_OFF },
   { key: "moveMode", section: "shortcut", label: "Pindah Shortcut ke List Lain", def: "cut",
     options: [["cut", "Cut (Dipindah)"], ["copy", "Duplikat (Disalin)"]] },
   { key: "importMode", section: "list", label: "Import List Bernama Sama", def: "new",
     options: [["new", "Buat Baru"], ["overwrite", "Timpa yang Ada"]] },
   { key: "listSort", section: "list", label: "Urutan List", def: "custom",
-    options: [["custom", "Custom"], ["number", "Number"], ["alphabet", "Alphabet"]] },
+    options: [["custom", "Custom"], ["az", "Nama A–Z"], ["za", "Nama Z–A"], ["newest", "Terbaru"], ["oldest", "Terlama"]] },
   { key: "confirmDelete", section: "list", label: "Konfirmasi Penghapusan", def: "on", options: ON_OFF },
   { key: "gridCols", section: "tampilan", label: "Kolom Grid", def: "3",
     options: [1, 2, 3, 4].map((n) => [String(n), `${n} Kolom`]) },
   { key: "theme", section: "tampilan", label: "Tema", def: "auto",
     options: [["auto", "Otomatis (ikut perangkat)"], ["light", "Terang"], ["dark", "Gelap"]] },
   { key: "language", section: "tampilan", label: "Bahasa / Language",
-    def: navigator.language.startsWith("id") ? "id" : "en",
+    def: ((navigator.languages && navigator.languages[0]) || navigator.language || "en").toLowerCase().startsWith("id") ? "id" : "en",
     options: [["id", "Indonesia"], ["en", "English"]] },
 ];
 
@@ -78,6 +81,8 @@ function loadSettings() {
   if (!saved || typeof saved !== "object") {
     try { saved = legacySettings(); } catch { saved = {}; }
   }
+  // nilai lama "number"/"alphabet" -> A–Z
+  if (saved.listSort === "number" || saved.listSort === "alphabet") saved.listSort = "az";
   const s = {};
   for (const d of SETTING_DEFS) {
     s[d.key] = d.options.some(([v]) => v === saved[d.key]) ? saved[d.key] : d.def;
@@ -134,6 +139,10 @@ const EN = {
   "Terang": "Light",
   "Gelap": "Dark",
   "Pengaturan gagal disimpan (penyimpanan penuh atau diblokir).": "Settings could not be saved (storage full or blocked).",
+  "Ya": "Yes",
+  "Tidak": "No",
+  "Link ditampilkan": "Show link",
+  "Selalu tampilkan note": "Always show note",
   // Advanced / backup
   "Backup Otomatis": "Automatic Backup",
   "Pilih file backup": "Choose backup file",
@@ -145,10 +154,9 @@ const EN = {
   "Putuskan file backup? File-nya tidak dihapus, hanya tidak diperbarui lagi.": "Disconnect the backup file? The file is not deleted, it just won't be updated anymore.",
   "Browser ini tidak bisa menulis file otomatis. Backup diunduh otomatis maksimal seminggu sekali.": "This browser can't write files automatically. A backup is downloaded automatically at most once a week.",
   "Belum ada file backup. Pilih file, lalu backup berjalan otomatis setiap ada perubahan.": "No backup file yet. Choose a file, then backups run automatically on every change.",
-  "Data shortcut kosong. Pulihkan dari file backup?": "Shortcut data is empty. Restore from a backup file?",
-  "Pulihkan": "Restore",
-  "Mulai baru": "Start fresh",
-  "File backup lama akan ditimpa begitu kamu menambah shortcut. Lanjut?": "The old backup file will be overwritten as soon as you add a shortcut. Continue?",
+  "Pulihkan dari backup": "Restore from backup",
+  "Data saat ini akan diganti dengan isi file backup. Lanjut?": "Current data will be replaced with the backup file. Continue?",
+  "Ada file backup tapi data kosong. Menambah shortcut akan menimpa file backup. Lanjut? (Batal = pulihkan lewat Settings > Advanced)": "A backup file exists but data is empty. Adding a shortcut will overwrite the backup file. Continue? (Cancel = restore via Settings > Advanced)",
   "File backup tidak valid.": "Invalid backup file.",
   "Backup dipulihkan.": "Backup restored.",
   "Gagal memulihkan backup.": "Failed to restore backup.",
@@ -169,6 +177,7 @@ const EN = {
   "Baru ditambahkan": "Recently added",
   "Terakhir dipakai": "Recently used",
   "Belum ada data.": "No data yet.",
+  "Nama": "Name",
   // Tour
   "Lewati": "Skip",
   "Kembali": "Back",
@@ -181,6 +190,7 @@ const EN_RE = [
   [/^Hapus (\d+) shortcut\?$/, "Delete $1 shortcuts?"],
   [/^Hapus (\d+) list\?$/, "Delete $1 lists?"],
   [/^(\d+) Kolom$/, "$1 Columns"],
+  [/^Dibuka (\d+)x$/, "Opened $1x"],
   [/^Kau memiliki (\d+) shortcut saat ini$/, "You currently have $1 shortcuts"],
   [/^(\d+) shortcut dilewati karena URL sama sudah ada di list tujuan\.$/, "$1 shortcuts skipped (same URL already in the target list)."],
   [/^(\d+) link dari (\d+) list diimpor\.(?: (\d+) dilewati \(URL tidak valid\)\.)?$/,

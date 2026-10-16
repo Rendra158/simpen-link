@@ -1,3 +1,73 @@
+/* ---------- akun Google untuk membuka shortcut (harus di atas) ---------- */
+const SL_ACC_LIST = "sl_accounts";
+const SL_ACC_ACTIVE = "sl_account_active";
+const SL_ACC_NEW = "__new__";
+const SL_ACC_DEL = "__del__";
+const SL_GOOGLE_RE = /(^|\.)google\.[a-z.]+$|(^|\.)youtube\.com$/i;
+
+function accLoad() { try { return JSON.parse(localStorage.getItem(SL_ACC_LIST)) || []; } catch { return []; } }
+function accSave(list) { try { localStorage.setItem(SL_ACC_LIST, JSON.stringify(list)); } catch {} }
+function accActive() { try { return localStorage.getItem(SL_ACC_ACTIVE) || ""; } catch { return ""; } }
+function accSetActive(email) { try { localStorage.setItem(SL_ACC_ACTIVE, email); } catch {} }
+
+// Link Google/YouTube diberi ?authuser=email. Link lain dikembalikan apa adanya.
+function withAccount(url) {
+    const acc = accActive();
+    if (!acc) return url;
+    try {
+        const u = new URL(url);
+        if (!SL_GOOGLE_RE.test(u.hostname)) return url;
+        u.pathname = u.pathname.replace(/\/u\/\d+(?=\/|$)/, "");
+        u.searchParams.set("authuser", acc);
+        return u.toString();
+    } catch { return url; }
+}
+
+// Dropdown akun. onChange dipanggil setelah akun berganti.
+function accountPicker(onChange) {
+    const sel = document.createElement("select");
+    sel.className = "sl-account-select";
+    sel.title = "Pilih akun untuk membuka shortcut";
+    sel.setAttribute("aria-label", "Pilih akun");
+
+    const add = (value, label) => {
+        const o = document.createElement("option");
+        o.value = value;
+        o.textContent = label;
+        sel.append(o);
+    };
+    add("", "Otomatis");
+    accLoad().forEach((a) => add(a.email, a.name));
+    add(SL_ACC_NEW, "+ Tambah akun…");
+    if (accActive()) add(SL_ACC_DEL, "− Hapus akun ini");
+
+    const cur = accActive();
+    sel.value = [...sel.options].some((o) => o.value === cur) ? cur : "";
+
+    sel.addEventListener("change", () => {
+        if (sel.value === SL_ACC_NEW) {
+            const email = (prompt("Email akun Google:") || "").trim();
+            if (/^\S+@\S+\.\S+$/.test(email)) {
+                const name = (prompt("Nama tampilan:", email.split("@")[0]) || email).trim();
+                const list = accLoad();
+                if (!list.some((a) => a.email === email)) list.push({ name, email });
+                accSave(list);
+                accSetActive(email);
+            } else if (email) alert("Email tidak valid.");
+        } else if (sel.value === SL_ACC_DEL) {
+            const cur = accActive();
+            if (confirm(`Hapus akun ${cur} dari daftar?`)) {
+                accSave(accLoad().filter((a) => a.email !== cur));
+                accSetActive("");
+            }
+        } else {
+            accSetActive(sel.value);
+        }
+        onChange?.();
+    });
+    return sel;
+}
+
 /* system.js — logika halaman utama. Butuh store.js dan data.js. */
 const wrapper = document.querySelector(".textbox-wrapper");
 const textbox = document.querySelector(".main");
@@ -27,6 +97,14 @@ const moreInfoBtn = document.querySelector("#more-info");
 const showBar = (el, on) => el.classList.toggle("bar-hide", !on);
 const barHome = document.querySelector("#bar-home");
 const barSelect = document.querySelector("#bar-select");
+
+// Pasang dropdown akun di bar atas, di antara Settings dan angka total.
+function mountAccountPicker() {
+    const sel = accountPicker(() => { mountAccountPicker(); renderShortcuts(); });
+    sel.classList.add("bar-item");
+    barHome.querySelector(".sl-account-select")?.remove();
+    barHome.insertBefore(sel, moreCountBtn);
+}
 
 const NO_LOGO = "Image/no-logo.svg";
 let modeIndex = 0;
@@ -75,6 +153,11 @@ const modes = [
 
 const mode = () => modes[modeIndex];
 
+/* ---------- pilihan pencarian ---------- */
+const SEARCH_OPTS = [["name", "Nama"], ["url", "URL"], ["note", "Note"], ["list", "List"]];
+let searchBy = "name";
+const matchedLists = (q) => getOrderedLists().filter((l) => l.name.toLowerCase().includes(q));
+
 function setMode(n) {
     modeIndex = n;
     editing = null;
@@ -112,21 +195,32 @@ function flashMode() {
 }
 
 function submitOrNextMode() {
-    if (textbox.value.trim()) {
-        if (mode().id === "search") {   // hasil sudah tampil saat mengetik: Enter = pindah mode
-            textbox.value = "";
-            setMode((modeIndex + 1) % modes.length);
-            flashMode();
+    const v = textbox.value.trim();
+    if (mode().id === "search") {
+        // search List: Enter memilih list yang cocok (1 list = buka list itu juga)
+        const ids = searchBy === "list" ? matchedLists(v.toLowerCase()).map((l) => l.id) : [];
+        textbox.value = "";
+        if (ids.length) {
+            if (ids.length === 1) setCurrent(ids[0]);
+            setMode(0);
+            ids.forEach((id) => selectedLists.add(id));
+            updateSelectionUI();
             return;
         }
-        if (mode().run(textbox.value.trim())) {
-            textbox.value = "";
-            refreshUI();
-        }
+        setMode((modeIndex + 1) % modes.length);
+        flashMode();
         return;
     }
-    setMode(editing ? 0 : (modeIndex + 1) % modes.length);
-    flashMode();
+    if (!v) {                      // kosong: Enter / klik ikon = ganti mode
+        if (editing) return;       // sedang edit: batalkan lewat Esc atau tombol X
+        setMode((modeIndex + 1) % modes.length);
+        flashMode();
+        return;
+    }
+    if (mode().run(v)) {           // berhasil: kosongkan textbox, sembunyikan field Name/Note
+        textbox.value = "";
+        refreshUI();
+    }
 }
 
 textbox.addEventListener("keydown", (e) => {
@@ -201,7 +295,7 @@ function updateSelectionUI() {
         bulkPinBtn.setAttribute("aria-label", allPinned ? "Lepas pin" : "Pin");
     }
 
-    document.querySelectorAll(".shortcut-box").forEach(card => {
+    document.querySelectorAll(".shortcut-box:not(.reco)").forEach(card => {
         card.classList.toggle("selected", selectedShortcuts.has(card.dataset.id));
     });
     document.querySelectorAll(".List button").forEach(btn => {
@@ -305,7 +399,7 @@ function refreshUI() {
     const hasValue = textbox.value.trim() !== "";
     const isLink = mode().id === "link";
     const isSearch = mode().id === "search";
-    listEl.classList.toggle("List-hidden", !!editing || isSearch || (isLink && hasValue));
+    listEl.classList.toggle("List-hidden", !!editing || (isLink && hasValue));
     const showFields = isLink && (hasValue || !!editing);
     nameField.classList.toggle("visible", showFields);
     noteField.classList.toggle("visible", showFields);
@@ -361,7 +455,7 @@ function faviconImg(url, cls = "") {
 function linkOverlay(item) {
     return h("a", {
         class: "stretch",
-        href: item.url,
+        href: withAccount(item.url),
         target: settings.openIn === "new" ? "_blank" : "_self",
         rel: "noopener noreferrer",
         draggable: "false",
@@ -371,11 +465,18 @@ function linkOverlay(item) {
 }
 
 function renderLists() {
+    if (mode().id === "search") {   // mode search: list diganti pilihan pencarian
+        listEl.replaceChildren(...SEARCH_OPTS.map(([k, label]) =>
+            h("button", { type: "button", "data-opt": k, text: tr(label) })));
+        updateActive();
+        updateSelectionUI();
+        return;
+    }
     listEl.replaceChildren(...getOrderedLists().map((list) => {
         const btn = h("button", { type: "button", class: list.isDefault ? "favorite" : "", "data-id": list.id });
-        if (list.isDefault) btn.append(h("img", { src: "Image/star.svg", alt: "" }), list.name);
+        if (list.isDefault) btn.append(h("img", { src: "Image/star.svg", alt: "", draggable: "false" }), list.name);
         else btn.textContent = list.name;
-        btn.draggable = !list.isDefault;
+        btn.draggable = false;   // urutan list digeser dengan mouse/sentuh buatan sendiri (blok fitList & sentuh)
         return btn;
     }));
     updateActive();
@@ -383,20 +484,23 @@ function renderLists() {
 }
 
 function updateActive() {
+    const search = mode().id === "search";
     for (const btn of listEl.children) {
-        const on = btn.dataset.id === currentId;
+        const on = search ? btn.dataset.opt === searchBy : btn.dataset.id === currentId;
         btn.classList.toggle("aktif", on);
         btn.tabIndex = on ? 0 : -1;
     }
 }
 
-function makeCard(item, listId, listName = null) {
+function makeCard(item, listId, listName = null, opens = null) {
+    const alwaysNote = settings.alwaysNote === "on";
+    const hasNote = item.note.trim() !== "";
     const top = h("div", { class: "shortcut-top" },
         h("div", { class: "shortcut-logo-wrap" }, faviconImg(item.url, "shortcut-logo")),
         h("div", { class: "shortcut-name", text: item.name }));
 
-    const hasNote = item.note.trim() !== "";
-    if (hasNote) {
+    // note selalu tampil: tidak perlu tombol buka/tutup (oc-note)
+    if (hasNote && !alwaysNote) {
         top.append(h("button", { class: "note-toggle", type: "button", "aria-label": "Tampilkan catatan" },
             h("img", { class: "oc-note", src: "Image/open-close-note.svg", alt: "" })));
     }
@@ -404,8 +508,15 @@ function makeCard(item, listId, listName = null) {
     // hasil pencarian: nama list di paling atas kartu (klik = buka list itu)
     const tag = listName === null ? [] : [h("button", { class: "list-tag", type: "button", text: listName, title: listName })];
     if (tag.length && item.pinned) tag[0].prepend(h("img", { class: "tag-pin", src: "Image/pin.svg", alt: "Dipin" }));
-    const card = h("div", { class: `shortcut-box ui-3d${listName === null ? "" : " has-tag"}${item.pinned ? " pinned" : ""}`, "data-id": item.id, "data-list": listId },
-        h("div", { class: "shortcut-main" }, top, h("div", { class: "shortcut-url", text: item.url })),
+    // panel "Sering dibuka": jumlah dibuka di paling atas kartu (biru, tidak bisa diklik)
+    if (opens !== null) tag.push(h("div", { class: "count-tag", text: `Dibuka ${opens}x` }));
+
+    const main = [top];
+    if (settings.showLink === "on") main.push(h("div", { class: "shortcut-url", text: item.url }));
+    const open = hasNote && alwaysNote ? " note-open" : "";
+
+    const card = h("div", { class: `shortcut-box ui-3d${tag.length ? " has-tag" : ""}${item.pinned ? " pinned" : ""}${open}`, "data-id": item.id, "data-list": listId },
+        h("div", { class: "shortcut-main" }, ...main),
         ...tag,
         linkOverlay(item));
 
@@ -415,11 +526,12 @@ function makeCard(item, listId, listName = null) {
 }
 
 // skor kecocokan: makin besar makin sesuai (0 = tidak cocok)
-function matchScore({ name, url }, q) {
-    name = name.toLowerCase();
-    if (name === q) return 5;
-    if (name.startsWith(q)) return 4;
-    if (name.includes(q)) return 3;
+function matchScore({ name, url, note }, q, by) {
+    if (by === "list") return 1;   // list sudah disaring di renderSearch
+    const text = (by === "url" ? url.replace(/^https?:\/\/(www\.)?/i, "") : by === "note" ? note : name).toLowerCase();
+    if (text === q) return 5;
+    if (text.startsWith(q)) return 4;
+    if (text.includes(q)) return 3;
     return 0;
 }
 
@@ -427,7 +539,8 @@ function renderSearch() {
     const q = textbox.value.trim().toLowerCase();
     if (!q) { gridEl.replaceChildren(); return; }   // belum mengetik: kosong
     const rows = getOrderedLists()
-        .flatMap((list) => list.items.map((item) => ({ item, list, s: matchScore(item, q) })))
+        .filter((list) => searchBy !== "list" || list.name.toLowerCase().includes(q))
+        .flatMap((list) => list.items.map((item) => ({ item, list, s: matchScore(item, q, searchBy) })))
         .filter((r) => r.s > 0)
         .sort((a, b) => (b.item.pinned ? 1 : 0) - (a.item.pinned ? 1 : 0) || b.s - a.s);   // pin dulu, lalu skor
     gridEl.replaceChildren(...(rows.length
@@ -460,8 +573,13 @@ function panelItems(mode) {
     if (mode === "frequent") return all.filter((r) => r.item.opens > 0).sort((a, b) => b.item.opens - a.item.opens).slice(0, 10);
     if (mode === "newest") return [...all].sort((a, b) => b.item.added - a.item.added).slice(0, 10);
     if (mode === "recent") return all.filter((r) => r.item.lastOpen > 0).sort((a, b) => b.item.lastOpen - a.item.lastOpen).slice(0, 10);
+    const pins = all.filter((r) => r.item.pinned);
+    if (settings.pinSort === "custom") {   // urutan hasil drag di panel (yang belum pernah diurutkan ke belakang)
+        const o = (r) => (r.item.pinOrder > 0 ? r.item.pinOrder : 1e15);
+        return pins.sort((a, b) => o(a) - o(b));
+    }
     const isNum = (r) => /^\d/.test(r.item.name);
-    return all.filter((r) => r.item.pinned).sort((a, b) =>
+    return pins.sort((a, b) =>
         isNum(a) !== isNum(b) ? (isNum(a) ? 1 : -1) : cmpText(a.item.name, b.item.name));   // huruf A-Z dulu, lalu angka 0-9
 }
 
@@ -472,10 +590,12 @@ function recoCards() {
     if (mode !== "reco") {
         const rows = panelItems(mode);
         if (!rows.length) return empty("Belum ada data.");
+        const canPinDrag = mode === "pin" && settings.pinSort === "custom";
         return rows.map(({ item, listId }) => {
-            const card = makeCard({ ...item, note: "" }, listId);
+            const card = makeCard({ ...item, note: "" }, listId, null, mode === "frequent" ? item.opens : null);
             card.classList.add("reco");
-            card.draggable = false;
+            card.draggable = canPinDrag;
+            if (canPinDrag) card.classList.add("pin-card");
             return card;
         });
     }
@@ -516,6 +636,14 @@ function homeView(cards) {
     ];
 }
 
+// note yang selalu tampil: hitung ulang tinggi kartunya (2-3 baris grid)
+function fitAllNotes() {
+    if (settings.alwaysNote !== "on") return;
+    gridEl.querySelectorAll(".shortcut-box.note-open").forEach(fitNote);
+}
+window.addEventListener("resize", fitAllNotes);
+document.fonts?.ready.then(fitAllNotes);
+
 function renderShortcuts() {
     updateCount();   // dari bagian no. 3
     if (mode().id === "search") { renderSearch(); updateSelectionUI(); return; }
@@ -526,6 +654,7 @@ function renderShortcuts() {
         : [h("div", { class: "shortcuts-empty", text: "Belum ada shortcut." })];
     gridEl.replaceChildren(...(list.isDefault ? homeView(cards) : cards));
     updateSelectionUI();
+    fitAllNotes();
 }
 
 // dari hasil pencarian: buka list-nya, pilih shortcut-nya, mode kembali ke Add Link
@@ -553,6 +682,15 @@ listEl.addEventListener("click", (e) => {
     if (coarse.matches && selectedLists.size > 0) { toggleListSelection(btn.dataset.id); return; }
     switchList(btn.dataset.id);
     btn.focus();
+});
+
+listEl.addEventListener("click", (e) => {
+    const opt = e.target.closest("button[data-opt]");
+    if (!opt) return;
+    searchBy = opt.dataset.opt;
+    updateActive();
+    renderSearch();
+    textbox.focus();
 });
 
 listEl.addEventListener("contextmenu", (e) => {
@@ -595,6 +733,7 @@ function startRename(btn, list) {
 }
 
 listEl.addEventListener("keydown", (e) => {
+    if (mode().id === "search") return;
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     if (e.target.classList.contains("rename-input")) return;
     const btns = [...listEl.children];
@@ -666,16 +805,25 @@ gridEl.addEventListener("click", (e) => {
     } else {
         openTimer = setTimeout(() => {
             trackOpen(listId, itemId);
-            if (settings.openIn === "new") window.open(item.url, "_blank", "noopener,noreferrer");
-            else window.location.href = item.url;
+            if (settings.openIn === "new") window.open(withAccount(item.url), "_blank", "noopener,noreferrer");
+            else window.location.href = withAccount(item.url);
         }, 250);
     }
 });
 
 gridEl.addEventListener("contextmenu", (e) => {
+    // panel kanan Home: klik kanan = buka list asalnya + pilih shortcut-nya
+    const side = e.target.closest?.(".shortcut-box.reco");
+    if (side) {
+        e.preventDefault();
+        if (mode().editable && side.dataset.list !== "reco") goToList(side.dataset.list, side.dataset.id);
+        return;
+    }
+
     const card = cardOf(e);
     if (!card || !mode().editable) return;   // mode search: tanpa seleksi/edit
     e.preventDefault();
+    if (editing) return;                     // sedang edit: klik kanan tidak mengubah seleksi
 
     const now = Date.now();
     const itemId = card.dataset.id;
@@ -720,47 +868,17 @@ function edgeScroll(el, e, axis) {
     if (d && !auto.raf) auto.raf = requestAnimationFrame(autoTick);
 }
 
-// --- List Drag ---
-listEl.addEventListener("dragstart", (e) => {
-    const btn = listBtn(e);
-    const list = btn && findList(btn.dataset.id);
-    if (!list || list.isDefault || settings.listSort !== "custom" || !mode().editable) {
-        e.preventDefault();
-        return;
-    }
-    
-    // Jika list yang di-drag sedang terseleksi, drag semua list yang terseleksi
-    let listIds = [];
-    if (selectedLists.has(list.id)) {
-        listIds = Array.from(selectedLists).filter(id => !findList(id).isDefault);
-    } else {
-        listIds = [list.id];
-    }
-    
-    drag = { type: "list", listIds: listIds };
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", list.name);
-    
-    // Feedback visual untuk semua item yang di-drag
-    listIds.forEach(id => {
-        const el = listEl.querySelector(`button[data-id="${id}"]`);
-        if (el) el.classList.add("dragging");
-    });
-});
+// --- Jatuhkan shortcut ke list (drag bawaan browser, hanya untuk kartu shortcut) ---
+// Urutan list TIDAK memakai drag bawaan: digeser dengan mouse/sentuh buatan sendiri
+// supaya tidak bentrok dengan geser/scroll list.
+listEl.addEventListener("dragstart", (e) => e.preventDefault());
 
 listEl.addEventListener("dragover", (e) => {
-    if (!drag || !mode().editable) return;
+    if (drag?.type !== "item" || !mode().editable) return;
     edgeScroll(listEl, e, "x");
     const btn = listBtn(e);
-    if (!btn) return;
-    const id = btn.dataset.id;
-    
-    // Validasi drop target
-    const ok = drag.type === "list" 
-        ? (!drag.listIds.includes(id) && !findList(id).isDefault)
-        : (id !== drag.listId);
-        
-    if (!ok) return;
+    listEl.querySelectorAll(".drop-target").forEach((n) => { if (n !== btn) n.classList.remove("drop-target"); });
+    if (!btn || btn.dataset.id === drag.listId) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     btn.classList.add("drop-target");
@@ -776,86 +894,107 @@ listEl.addEventListener("drop", (e) => {
     const btn = listBtn(e);
     const d = drag;
     endDrag();
-    if (!btn || !d || !mode().editable) return;
-    const id = btn.dataset.id;
-    
-    if (d.type === "list") {
-        if (d.listIds.includes(id)) return;
-        reorderLists(d.listIds, id);
-        renderLists();
-    } else {
-        // Memindahkan shortcut massal ke list lain
-        const targetListId = id;
-        let duplicateCount = 0;
-        
-        const itemsToMove = d.itemIds.map(itemId => findItem(d.listId, itemId)).filter(Boolean);
-        
-        for (const item of itemsToMove) {
-            const res = moveShortcut(d.listId, item.id, targetListId);
-            if (res === "duplicate") duplicateCount++;
-        }
-        
-        if (duplicateCount > 0) {
-            alert(`${duplicateCount} shortcut dilewati karena URL sama sudah ada di list tujuan.`);
-        }
-        
-        // Hapus dari seleksi karena sudah dipindah
-        itemsToMove.forEach(item => selectedShortcuts.delete(item.id));
-        updateSelectionUI();
-        
-        renderShortcuts();
+    if (!btn || d?.type !== "item" || !mode().editable || btn.dataset.id === d.listId) return;
+
+    let duplicateCount = 0;
+    const itemsToMove = d.itemIds.map((itemId) => findItem(d.listId, itemId)).filter(Boolean);
+    for (const item of itemsToMove) {
+        const res = moveShortcut(d.listId, item.id, btn.dataset.id);
+        if (res === "duplicate") duplicateCount++;
+        else if (res) selectedShortcuts.delete(item.id);
     }
+    if (duplicateCount > 0) alert(`${duplicateCount} shortcut dilewati karena URL sama sudah ada di list tujuan.`);
+    updateSelectionUI();
+    renderShortcuts();
 });
 
 // --- Shortcut Drag ---
+// boleh dijatuhkan di kartu ini? pin butuh pinSort = custom, non-pin butuh shortcutSort = custom,
+// dan yang diseret harus sejenis (pin dengan pin)
+function canDropOn(card, d = drag) {
+    const pinned = card.classList.contains("pinned");
+    if (pinned ? settings.pinSort !== "custom" : settings.shortcutSort !== "custom") return false;
+    return d.itemIds.some((id) => !!findItem(d.listId, id)?.pinned === pinned);
+}
+
+// Panel Pin di kanan Home: urutan hanya berubah di dalam panel itu
+const pinCardOf = (e) => e.target.closest?.(".shortcut-box.pin-card");
+function dropPin(fromIds, toId) {
+    const order = panelItems("pin").map((r) => r.item.id);
+    const moving = order.filter((id) => fromIds.includes(id));
+    const toIdx = order.indexOf(toId);
+    if (!moving.length || toIdx === -1 || moving.includes(toId)) return;
+    const forward = order.indexOf(moving[0]) < toIdx;
+    const rest = order.filter((id) => !moving.includes(id));
+    rest.splice(rest.indexOf(toId) + (forward ? 1 : 0), 0, ...moving);
+    setPinOrder(rest);
+    renderShortcuts();
+}
+
 gridEl.addEventListener("dragstart", (e) => {
+    const pin = pinCardOf(e);
+    if (pin) {
+        if (!mode().editable) { e.preventDefault(); return; }
+        drag = { type: "pin", itemIds: [pin.dataset.id] };
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", pin.dataset.id);
+        pin.classList.add("dragging");
+        return;
+    }
+
     const card = cardOf(e);
     if (!card || !mode().editable) { e.preventDefault(); return; }
-    
+
     // Jika shortcut yang di-drag sedang terseleksi, drag semua shortcut yang terseleksi
-    let itemIds = [];
-    if (selectedShortcuts.has(card.dataset.id)) {
-        itemIds = Array.from(selectedShortcuts);
-    } else {
-        itemIds = [card.dataset.id];
-    }
-    
-    drag = { type: "item", listId: currentId, itemIds: itemIds };
+    const itemIds = selectedShortcuts.has(card.dataset.id) ? Array.from(selectedShortcuts) : [card.dataset.id];
+
+    drag = { type: "item", listId: currentId, itemIds };
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", card.dataset.id);
-    
-    // Feedback visual
+
     itemIds.forEach(id => {
-        const el = gridEl.querySelector(`.shortcut-box[data-id="${id}"]`);
+        const el = gridEl.querySelector(`.shortcut-box[data-id="${id}"]:not(.reco)`);
         if (el) el.classList.add("dragging");
     });
 });
 
 gridEl.addEventListener("dragover", (e) => {
+    if (drag?.type === "pin") {
+        edgeScroll(gridEl, e, "y");
+        const pc = pinCardOf(e);
+        if (!pc || drag.itemIds.includes(pc.dataset.id)) return;
+        e.preventDefault();
+        pc.classList.add("dragover");
+        return;
+    }
     if (drag?.type !== "item") return;
     edgeScroll(gridEl, e, "y");
     const card = cardOf(e);
-    if (!card || card.classList.contains("pinned") || settings.shortcutSort !== "custom" || drag.listId !== currentId) return;
+    if (!card || drag.listId !== currentId || !canDropOn(card)) return;
     e.preventDefault();
     card.classList.add("dragover");
 });
 
 gridEl.addEventListener("dragleave", (e) => {
-    cardOf(e)?.classList.remove("dragover");
+    (cardOf(e) || pinCardOf(e))?.classList.remove("dragover");
     if (!gridEl.contains(e.relatedTarget)) stopAutoScroll();
 });
 
 gridEl.addEventListener("drop", (e) => {
     e.preventDefault();
+    const pc = pinCardOf(e);
     const card = cardOf(e);
     const d = drag;
     endDrag();
-    if (!card || d?.type !== "item" || d.listId !== currentId || settings.shortcutSort !== "custom") return;
-    
+    if (d?.type === "pin") {
+        if (pc) dropPin(d.itemIds, pc.dataset.id);
+        return;
+    }
+    if (!card || d?.type !== "item" || d.listId !== currentId || !canDropOn(card, d)) return;
+
     const targetId = card.dataset.id;
     if (d.itemIds.includes(targetId)) return; // Jangan drop di diri sendiri
-    
-    // Gunakan fungsi reorder massal baru
+
     reorderShortcuts(currentId, d.itemIds, targetId);
     renderShortcuts();
 });
@@ -904,7 +1043,7 @@ function syncFromStorage() {
     renderShortcuts();
 }
 window.addEventListener("storage", (e) => {
-    if (e.key === null || e.key === DATA_KEY || e.key === SETTINGS_KEY) syncFromStorage();
+    if (e.key === null || e.key === DATA_KEY || e.key === SETTINGS_KEY || e.key === SL_ACC_LIST || e.key === SL_ACC_ACTIVE) syncFromStorage();
 });
 // halaman dipulihkan dari cache tombol Back: skrip tidak jalan ulang, jadi muat ulang data
 window.addEventListener("pageshow", (e) => { if (e.persisted) syncFromStorage(); });
@@ -912,6 +1051,7 @@ window.addEventListener("pageshow", (e) => { if (e.persisted) syncFromStorage();
 /* ---------- mulai ---------- */
 gridEl.dataset.cols = settings.gridCols;
 navigator.storage?.persist?.();
+mountAccountPicker();
 setMode(0);
 
 /* ---------- lebar list menyesuaikan: geser per tombol, tidak ada yang terpotong ---------- */
@@ -919,7 +1059,7 @@ setMode(0);
     let timer = null, touching = false, lastActive = null, lastSet = -1;
 
     function fitList() {
-        if (touching) return;
+        if (touching || drag) return;
         const btns = [...listEl.querySelectorAll("button")];
         const W = listEl.clientWidth;
         const n = btns.length;
@@ -940,10 +1080,15 @@ setMode(0);
         // 2) tombol pertama yang tampil: yang paling dekat posisi scroll sekarang
         let maxStart = n - 1;   // paling kanan yang masih membuat sisa tombol muat semua
         while (maxStart > 0 && R[n - 1] - L[maxStart - 1] <= W + 1) maxStart--;
-        let s = 0;
-        btns.forEach((_, i) => {
-            if (Math.abs(L[i] - listEl.scrollLeft) < Math.abs(L[s] - listEl.scrollLeft)) s = i;
-        });
+        // titik snap: awal tiap tombol, kecuali maxStart = ujung kanan sebenarnya.
+        // Dulu ujung kanan dibulatkan ke tombol sebelumnya, jadi list terakhir terpotong & sulit dicapai.
+        const maxScroll = Math.max(0, R[n - 1] - W);
+        const cur = listEl.scrollLeft;
+        let s = 0, bestDist = Infinity;
+        for (let i = 0; i <= maxStart; i++) {
+            const dist = Math.abs((i === maxStart ? maxScroll : L[i]) - cur);
+            if (dist < bestDist) { bestDist = dist; s = i; }
+        }
 
         // 3) list aktif berganti: pastikan terlihat dengan geseran sesedikit mungkin
         const ai = btns.findIndex((b) => b.classList.contains("aktif"));
@@ -985,12 +1130,126 @@ setMode(0);
     listEl.addEventListener("scroll", () => {
         if (Math.abs(listEl.scrollLeft - lastSet) < 1) return;   // scroll dari fitList sendiri: abaikan
         listEl.querySelectorAll("button").forEach((b) => (b.style.visibility = "visible"));
-        if (!touching) later(120);
+        if (!touching && !drag) later(120);
     });
     listEl.addEventListener("touchstart", () => { touching = true; clearTimeout(timer); }, { passive: true });
     const endTouch = () => { touching = false; later(150); };
     listEl.addEventListener("touchend", endTouch);
     listEl.addEventListener("touchcancel", endTouch);
+
+    /* geser kategori pakai mouse: SATU alur untuk geser & pindah urutan
+       - langsung geser            = scroll list
+       - tahan 300 ms lalu geser   = drag & drop urutan list (hanya list yang boleh dipindah)
+       - Esc / lepas di luar       = batal */
+    const HOLD_MS = 300, SCROLL_PX = 5, DRAG_PX = 4;
+    let md = null, mdTimer = null, blockClick = false, locked = false;
+    const saved = { snap: "", behavior: "" };
+
+    // selama menggeser: matikan snap/smooth-scroll CSS & seleksi teks supaya tidak "melawan" mouse
+    function lockScroll(on) {
+        if (on === locked) return;
+        locked = on;
+        if (on) {
+            saved.snap = listEl.style.scrollSnapType;
+            saved.behavior = listEl.style.scrollBehavior;
+            listEl.style.scrollSnapType = "none";
+            listEl.style.scrollBehavior = "auto";
+            listEl.style.userSelect = "none";
+        } else {
+            listEl.style.scrollSnapType = saved.snap;
+            listEl.style.scrollBehavior = saved.behavior;
+            listEl.style.userSelect = "";
+        }
+    }
+    const suppressClick = () => {   // cegah klik (ganti list) setelah geser / drop
+        blockClick = true;
+        setTimeout(() => (blockClick = false), 50);
+    };
+
+    listEl.addEventListener("mousedown", (e) => {
+        if (e.button !== 0 || e.sourceCapabilities?.firesTouchEvents || e.target.closest(".rename-input")) return;
+        const btn = e.target.closest("button[data-id]");
+        const list = btn && findList(btn.dataset.id);
+        const canDnD = !!list && !list.isDefault && settings.listSort === "custom" && mode().editable;
+        md = { x: e.clientX, y: e.clientY, left: listEl.scrollLeft, armed: false, mode: null, canDnD, btn };
+        touching = true;             // tahan fitList selama mouse ditekan
+        clearTimeout(timer);
+        listEl.querySelectorAll("button").forEach((b) => (b.style.visibility = "visible"));
+        clearTimeout(mdTimer);
+        mdTimer = setTimeout(() => { if (md && !md.mode) md.armed = true; }, HOLD_MS);
+    });
+
+    const dropBtn = (e) => {
+        const t = document.elementFromPoint(e.clientX, e.clientY)?.closest("button[data-id]");
+        const ok = t && listEl.contains(t) && drag?.type === "list"
+            && !drag.listIds.includes(t.dataset.id) && !findList(t.dataset.id)?.isDefault;
+        return ok ? t : null;
+    };
+
+    function startListDrag() {
+        const id = md.btn.dataset.id;
+        const ids = selectedLists.has(id) ? [...selectedLists].filter((i) => !findList(i)?.isDefault) : [id];
+        drag = { type: "list", listIds: ids };
+        ids.forEach((i) => listEl.querySelector(`button[data-id="${i}"]`)?.classList.add("dragging"));
+    }
+
+    function moveListDrag(e) {
+        listEl.querySelectorAll(".drop-target").forEach((n) => n.classList.remove("drop-target"));
+        edgeScroll(listEl, e, "x");
+        dropBtn(e)?.classList.add("drop-target");
+    }
+
+    document.addEventListener("mousemove", (e) => {
+        if (!md) return;
+        if (!(e.buttons & 1)) { endMouse({ type: "cancel" }); return; }   // tombol dilepas di luar jendela
+        const dx = e.clientX - md.x;
+        if (!md.mode) {
+            if (md.armed && md.canDnD) {
+                if (Math.hypot(dx, e.clientY - md.y) < DRAG_PX) return;
+                md.mode = "drag";
+                startListDrag();
+            } else {
+                if (Math.abs(dx) < SCROLL_PX) return;
+                md.mode = "scroll";
+                clearTimeout(mdTimer);
+            }
+            listEl.classList.add("grabbing");
+            lockScroll(true);
+        }
+        if (md.mode === "drag") moveListDrag(e);
+        else listEl.scrollLeft = md.left - dx;
+    });
+
+    function endMouse(e) {
+        if (!md) return;
+        clearTimeout(mdTimer);
+        const m = md;
+        md = null;
+        touching = false;
+        listEl.classList.remove("grabbing");
+        lockScroll(false);
+        if (m.mode === "drag" && drag?.type === "list") {
+            const target = e.type === "mouseup" ? dropBtn(e) : null;   // batal = tidak ada drop
+            const ids = drag.listIds;
+            endDrag();               // bersihkan kelas, hentikan auto-scroll, drag = null
+            suppressClick();
+            if (target) {
+                reorderLists(ids, target.dataset.id);
+                renderLists();
+            }
+        } else if (m.mode) {
+            suppressClick();
+        }
+        later(150);                  // rapikan posisi ke tombol terdekat (ujung kanan ikut dihitung)
+    }
+    document.addEventListener("mouseup", endMouse);
+    window.addEventListener("blur", () => endMouse({ type: "cancel" }));
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && md?.mode === "drag") endMouse({ type: "cancel" });
+    });
+    listEl.addEventListener("click", (e) => {
+        if (blockClick) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
 
     window.addEventListener("resize", fitList);
     window.addEventListener("load", fitList);
@@ -1017,13 +1276,15 @@ setMode(0);
 
     const SEL_LIST = ".List button[data-id]";
     const at = (t) => document.elementFromPoint(t.clientX, t.clientY);
-    const okList = (btn) => drag.type === "list"
-        ? !drag.listIds.includes(btn.dataset.id) && !findList(btn.dataset.id).isDefault
-        : btn.dataset.id !== drag.listId;
-        const okCard = (card) => settings.shortcutSort === "custom" && !card.classList.contains("pinned") && !drag.itemIds.includes(card.dataset.id);
+    const okList = (btn) => drag.type === "pin" ? false
+        : drag.type === "list"
+            ? !drag.listIds.includes(btn.dataset.id) && !findList(btn.dataset.id).isDefault
+            : btn.dataset.id !== drag.listId;
+    const okCard = (card) => canDropOn(card) && !drag.itemIds.includes(card.dataset.id);
 
     function canDrag(kind, id) {
         if (!mode().editable) return false;
+        if (kind === "pin") return settings.pinSort === "custom";
         if (kind === "list") {
             const list = findList(id);
             return !!list && !list.isDefault && settings.listSort === "custom";
@@ -1031,6 +1292,7 @@ setMode(0);
         return true;
     }
     function toggle(kind, id) {
+        if (kind === "pin") return;   // kartu panel kanan tidak bisa dipilih
         if (kind === "list") toggleListSelection(id);
         else toggleShortcutSelection(id);
         navigator.vibrate?.(30);
@@ -1046,10 +1308,13 @@ setMode(0);
             const ids = selectedLists.has(id) ? [...selectedLists].filter((i) => !findList(i).isDefault) : [id];
             drag = { type: "list", listIds: ids };
             ids.forEach((i) => listEl.querySelector(`button[data-id="${i}"]`)?.classList.add("dragging"));
+        } else if (kind === "pin") {
+            drag = { type: "pin", itemIds: [id] };
+            el.classList.add("dragging");
         } else {
             const ids = selectedShortcuts.has(id) ? [...selectedShortcuts] : [id];
             drag = { type: "item", listId: currentId, itemIds: ids };
-            ids.forEach((i) => gridEl.querySelector(`.shortcut-box[data-id="${i}"]`)?.classList.add("dragging"));
+            ids.forEach((i) => gridEl.querySelector(`.shortcut-box[data-id="${i}"]:not(.reco)`)?.classList.add("dragging"));
         }
         navigator.vibrate?.(30);
     }
@@ -1058,10 +1323,10 @@ setMode(0);
         touching = true;
         held = false;
         moved = false;
-        const el = e.target.closest?.(`${SEL_LIST}, .shortcut-box:not(.reco)`);
+        const el = e.target.closest?.(`${SEL_LIST}, .shortcut-box:not(.reco), .pin-card`);
         if (e.touches.length !== 1 || !el || !mode().editable || e.target.closest(".note-toggle, .rename-input, .list-tag")) return;
         startPt = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        pending = { kind: el.matches(".shortcut-box") ? "item" : "list", el };
+        pending = { kind: el.matches(".pin-card") ? "pin" : el.matches(".shortcut-box") ? "item" : "list", el };
         timer = setTimeout(onHold, HOLD);
     }, { passive: true });
 
@@ -1080,6 +1345,12 @@ setMode(0);
         if (e.cancelable) e.preventDefault();
         document.querySelectorAll(".dragover, .drop-target").forEach((n) => n.classList.remove("dragover", "drop-target"));
         const over = at(t);
+        if (drag.type === "pin") {   // pin: hanya bisa jatuh di kartu pin lain
+            const pc = over?.closest(".pin-card");
+            if (pc && !drag.itemIds.includes(pc.dataset.id)) pc.classList.add("dragover");
+            edgeScroll(gridEl, t, "y");
+            return;
+        }
         const btn = over?.closest(SEL_LIST);
         const card = over?.closest(".shortcut-box");
         if (btn && okList(btn)) btn.classList.add("drop-target");
@@ -1108,6 +1379,11 @@ setMode(0);
             return;
         }
         if (!over) return;
+        if (d.type === "pin") {
+            const pc = over.closest(".pin-card");
+            if (pc) dropPin(d.itemIds, pc.dataset.id);
+            return;
+        }
         const btn = over.closest(SEL_LIST);
         const card = over.closest(".shortcut-box");
 
@@ -1126,7 +1402,7 @@ setMode(0);
             if (dup) alert(`${dup} shortcut dilewati karena URL sama sudah ada di list tujuan.`);
             updateSelectionUI();
             renderShortcuts();
-        } else if (card && settings.shortcutSort === "custom" && !d.itemIds.includes(card.dataset.id)) {
+        } else if (card && canDropOn(card, d) && !d.itemIds.includes(card.dataset.id)) {
             reorderShortcuts(d.listId, d.itemIds, card.dataset.id);
             renderShortcuts();
         }
@@ -1141,4 +1417,35 @@ setMode(0);
     document.addEventListener("contextmenu", (e) => {
         if (held || Date.now() < suppressUntil) { e.preventDefault(); e.stopImmediatePropagation(); }
     }, true);
+})();
+
+/* ---------- ketik / Enter / paste di mana saja langsung ke textbox ---------- */
+(() => {
+    const typing = (el) => !!el && (el.matches?.("input, textarea, select, [contenteditable]") || el.isContentEditable);
+    const touring = () => typeof tour !== "undefined" && tour;   // sedang spotlight
+
+    document.addEventListener("keydown", (e) => {
+        if (e.defaultPrevented || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
+        const a = document.activeElement;
+        if (typing(a) || touring()) return;   // termasuk saat rename list (itu input)
+        const byKeyboard = a !== document.body && a.matches(":focus-visible");   // fokus hasil Tab: biarkan
+        if (e.key === "Enter") {
+            if (byKeyboard) return;
+            e.preventDefault();
+            textbox.focus();
+            submitOrNextMode();
+        } else if (e.key.length === 1 && !(e.key === " " && byKeyboard)) {
+            textbox.focus();   // huruf pertama ikut terketik di textbox
+        }
+    });
+
+    document.addEventListener("paste", (e) => {
+        if (typing(document.activeElement) || touring()) return;
+        const t = (e.clipboardData?.getData("text") || "").replace(/[\r\n]+/g, " ");
+        if (!t.trim()) return;
+        e.preventDefault();
+        textbox.focus();
+        textbox.setRangeText(t, textbox.selectionStart, textbox.selectionEnd, "end");
+        refreshUI();
+    });
 })();
