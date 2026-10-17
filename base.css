@@ -660,6 +660,41 @@ transition: transform 0.3s ease;
   .bar .sl-account-select { max-width: 90px; padding: 4px 6px; font-size: 11px; }
 }
 
+/* bar A–Z / 0–9 di pinggir kanan */
+body.has-az .shortcuts-grid { padding-right: 28px; }
+.az-bar {
+    position: fixed;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-height: calc(100dvh - 190px);
+    padding: 4px 2px;
+    overflow: hidden;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--c-surface) 85%, transparent);
+    box-shadow: 0 2px 8px rgba(18, 58, 99, 0.25);
+}
+.az-bar[hidden] { display: none; }
+.az-btn {
+    flex: 0 1 16px;
+    min-height: 0;
+    width: 22px;
+    padding: 0;
+    border: none;
+    background: none;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: bold;
+    color: var(--c-heading);
+    cursor: pointer;
+}
+.az-btn:disabled { opacity: 0.3; cursor: default; }
+.az-btn:active:not(:disabled) { background: var(--c-blue); border-radius: 6px; }
+
 /* tinggi kartu: rapi = satu baris sama tinggi, mengikuti kartu tertinggi (note ditampilkan utuh) */
 body .shortcuts-grid[data-fit="even"],
 body .shortcuts-grid[data-fit="even"] .home-left { grid-auto-rows: auto !important; }
