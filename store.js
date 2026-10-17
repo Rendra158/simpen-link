@@ -20,6 +20,9 @@ const SETTING_DEFS = [
   { key: "openIn", section: "shortcut", label: "Buka Shortcut di", def: "new",
     options: [["new", "Tab Baru"], ["same", "Tab yang Sama"]] },
   { key: "showLink", section: "shortcut", label: "Link ditampilkan", def: "on", options: YES_NO },
+  { key: "cardHeight", section: "shortcut", label: "Tinggi Shortcut", def: "fit",
+    options: [["fit", "Menyesuaikan"], ["even", "Rapi (Sama Tinggi)"]] },
+  { key: "showLogo", section: "shortcut", label: "Tampilkan Logo Website", def: "on", options: YES_NO },
   { key: "alwaysNote", section: "shortcut", label: "Selalu tampilkan note", def: "off", options: YES_NO },
   { key: "allowDuplicate", section: "shortcut", label: "Shortcut Duplikat", def: "on", options: ON_OFF },
   { key: "moveMode", section: "shortcut", label: "Pindah Shortcut ke List Lain", def: "cut",
@@ -30,12 +33,13 @@ const SETTING_DEFS = [
     options: [["custom", "Custom"], ["az", "Nama A–Z"], ["za", "Nama Z–A"], ["newest", "Terbaru"], ["oldest", "Terlama"]] },
   { key: "confirmDelete", section: "list", label: "Konfirmasi Penghapusan", def: "on", options: ON_OFF },
   { key: "gridCols", section: "tampilan", label: "Kolom Grid", def: "3",
-    options: [1, 2, 3, 4].map((n) => [String(n), `${n} Kolom`]) },
+    options: [1, 2, 3, 4, 5].map((n) => [String(n), `${n} Kolom`]) },
   { key: "theme", section: "tampilan", label: "Tema", def: "auto",
     options: [["auto", "Otomatis (ikut perangkat)"], ["light", "Terang"], ["dark", "Gelap"]] },
   { key: "language", section: "tampilan", label: "Bahasa / Language",
     def: ((navigator.languages && navigator.languages[0]) || navigator.language || "en").toLowerCase().startsWith("id") ? "id" : "en",
     options: [["id", "Indonesia"], ["en", "English"]] },
+  { key: "accountPicker", section: "advanced", label: "Buka Shortcut dengan Akun Berbeda", def: "off", options: ON_OFF },
 ];
 
 /* ---------- helper ---------- */
@@ -143,6 +147,21 @@ const EN = {
   "Tidak": "No",
   "Link ditampilkan": "Show link",
   "Selalu tampilkan note": "Always show note",
+  "Tinggi Shortcut": "Shortcut Height",
+  "Menyesuaikan": "Fit to Content",
+  "Rapi (Sama Tinggi)": "Even (Same Height)",
+  "Tampilkan Logo Website": "Show Website Logo",
+  "Buka Shortcut dengan Akun Berbeda": "Open Shortcuts with Different Accounts",
+  "Hapus Semua Data": "Delete All Data",
+  // Akun
+  "Otomatis": "Auto",
+  "+ Tambah akun…": "+ Add account…",
+  "− Hapus akun ini": "− Remove this account",
+  "Email akun Google:": "Google account email:",
+  "Nama tampilan:": "Display name:",
+  "Email tidak valid.": "Invalid email.",
+  "Pilih akun untuk membuka shortcut": "Choose an account to open shortcuts",
+  "Pilih akun": "Choose account",
   // Advanced / backup
   "Backup Otomatis": "Automatic Backup",
   "Pilih file backup": "Choose backup file",
@@ -197,6 +216,7 @@ const EN_RE = [
     (m, a, b, c) => `${a} links from ${b} lists imported.` + (c ? ` ${c} skipped (invalid URL).` : "")],
   [/^File: (.*) — aktif$/, "File: $1 — active"],
   [/^File: (.*) — perlu izin \(buka halaman utama, klik sekali, lalu izinkan\)$/, "File: $1 — permission needed (open the main page, click once, then allow)"],
+  [/^Hapus akun (.*) dari daftar\?$/, "Remove account $1 from the list?"],
 ];
 
 const tr = (s) => {
@@ -210,9 +230,10 @@ document.documentElement.lang = settings.language;
 
 if (settings.language === "en") {
   // alert & confirm otomatis diterjemahkan
-  const _alert = window.alert.bind(window), _confirm = window.confirm.bind(window);
+  const _alert = window.alert.bind(window), _confirm = window.confirm.bind(window), _prompt = window.prompt.bind(window);
   window.alert = (m) => _alert(tr(m));
   window.confirm = (m) => _confirm(tr(m));
+  window.prompt = (m, d) => _prompt(tr(m), d);
 
   // teks di halaman otomatis diterjemahkan (data buatan pengguna dilewati)
   const SKIP = ".shortcut-name, .shortcut-url, .shortcut-note, .list-tag, .rename-input, .List button, textarea, script, style";
@@ -233,4 +254,40 @@ if (settings.language === "en") {
     }))).observe(document.body, { childList: true, subtree: true });
   };
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", run) : run();
+}
+
+/* ---------- hapus seluruh data ---------- */
+async function wipeAllData() {
+  const wait = (req) => new Promise((ok) => {
+    req.onsuccess = req.onerror = req.onblocked = () => ok();
+    setTimeout(ok, 1500);
+  });
+  try { localStorage.clear(); sessionStorage.clear(); } catch {}
+  try {
+    const regs = (await navigator.serviceWorker?.getRegistrations()) || [];
+    await Promise.all(regs.map((r) => r.unregister()));
+  } catch {}
+  try {
+    const keys = (await window.caches?.keys()) || [];
+    await Promise.all(keys.map((k) => caches.delete(k)));
+  } catch {}
+  try {
+    const dbs = (await indexedDB.databases?.()) || [];
+    await Promise.all(dbs.filter((d) => d.name).map((d) => wait(indexedDB.deleteDatabase(d.name))));
+  } catch {}
+  location.replace("index.html");   // data kosong + panduan (spotlight) muncul lagi
+}
+
+function askWipeAll() {
+  const en = settings.language === "en";
+  const word = en ? "DELETE" : "HAPUS";
+  if (!confirm(en
+    ? "Delete ALL data (shortcuts, lists, settings, accounts)? This cannot be undone. Backup files already saved on your device are NOT deleted."
+    : "Hapus SEMUA data (shortcut, list, pengaturan, akun)? Tindakan ini tidak bisa dibatalkan. File backup yang sudah tersimpan di perangkat TIDAK ikut terhapus.")) return;
+  const v = prompt(en ? `Type "${word}" to confirm:` : `Ketik "${word}" untuk memastikan:`);
+  if ((v || "").trim().toUpperCase() !== word) {
+    alert(en ? "Cancelled. Nothing was deleted." : "Dibatalkan. Tidak ada yang dihapus.");
+    return;
+  }
+  wipeAllData();
 }

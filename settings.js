@@ -129,11 +129,16 @@ function makeAdvancedRows() {
     status.textContent = `File: ${handle.name} — ` + (ok ? "aktif" : "perlu izin (buka halaman utama, klik sekali, lalu izinkan)");
     actions.append(btn("Backup sekarang", backupNow), btn("Ganti file", pick), btn("Putuskan", unlink), restoreBtn);
   }
+
+  const wipeBtn = btn("Hapus Semua Data", askWipeAll);
+  wipeBtn.style.color = "#d33";
+  wipeBtn.style.borderColor = "#d33";
   
   refresh();
   return [
     h("div", { class: "s-row" }, h("div", { class: "s-label", text: "Backup Otomatis" }), actions),
     h("div", { class: "s-row" }, status),
+    h("div", { class: "s-row" }, h("div", { class: "s-label", text: "Hapus Semua Data" }), wipeBtn),
   ];
 }
 

@@ -78,6 +78,7 @@ html, body { height: 100%; margin: 0; }
 .shortcuts-grid[data-cols="2"] { --cols: 2; --shortcut-h: 100px; }
 .shortcuts-grid[data-cols="3"] { --cols: 3; --shortcut-h: 90px; }
 .shortcuts-grid[data-cols="4"] { --cols: 4; --shortcut-h: 80px; }
+.shortcuts-grid[data-cols="5"] { --cols: 5; --shortcut-h: 72px; }
 
 /* Tinggi baris tetap = tinggi kartu, supaya kartu bisa mengambil 2-3 baris (grid-row: span N dari JS).
    Tidak berlaku di Home (ada judul) dan hasil pencarian (kartu punya tag). */
@@ -191,8 +192,10 @@ html, body { height: 100%; margin: 0; }
   .shortcuts-grid[data-cols="1"] { --cols: 1; --shortcut-h: clamp(70px, calc((100vw - 24px) * 0.25), 105px); }
   .shortcuts-grid[data-cols="2"] { --cols: 2; --shortcut-h: clamp(60px, calc((100vw - 32px) * 0.225), 100px); }
   .shortcuts-grid[data-cols="3"],
-  .shortcuts-grid[data-cols="4"] { --cols: 3; --shortcut-h: clamp(50px, calc((100vw - 40px) * 0.1933), 90px); }
+  .shortcuts-grid[data-cols="4"],
+  .shortcuts-grid[data-cols="5"] { --cols: 3; --shortcut-h: clamp(50px, calc((100vw - 40px) * 0.1933), 90px); }
 
+  
   /* ----- isi kartu ikut mengecil: dihitung dari LEBAR kartu, ada batas bawah & atas ----- */
   .shortcuts-grid, .home-left, .home-reco {
     --card-w: calc((100vw - 24px - (var(--cols) - 1) * var(--grid-gap)) / var(--cols));

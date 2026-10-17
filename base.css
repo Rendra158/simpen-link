@@ -659,3 +659,28 @@ transition: transform 0.3s ease;
 @media (max-width: 768px) {
   .bar .sl-account-select { max-width: 90px; padding: 4px 6px; font-size: 11px; }
 }
+
+/* tinggi kartu: rapi = satu baris sama tinggi, mengikuti kartu tertinggi (note ditampilkan utuh) */
+body .shortcuts-grid[data-fit="even"],
+body .shortcuts-grid[data-fit="even"] .home-left { grid-auto-rows: auto !important; }
+
+body .shortcuts-grid[data-fit="even"] .shortcut-box:not(.has-tag):not(.reco) {
+    height: auto !important;
+    min-height: var(--shortcut-h);
+    max-height: none !important;
+    grid-row: auto !important;
+    align-self: stretch;
+    align-items: flex-start;       /* ikon, nama, link tetap di atas */
+    justify-content: flex-start;
+}
+body .shortcuts-grid[data-fit="even"] .shortcut-box.note-open:not(.has-tag):not(.reco) {
+    align-items: stretch;          /* kartu dengan note: isi selebar kartu */
+}
+body .shortcuts-grid[data-fit="even"] .shortcut-box { transition: transform 0.12s ease, box-shadow 0.12s ease; }
+body .shortcuts-grid[data-fit="even"] .shortcut-box.note-open .shortcut-note {
+    flex: none;
+    min-height: auto;
+    max-height: none;
+    overflow: visible;
+    white-space: normal;
+}

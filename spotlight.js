@@ -72,10 +72,10 @@ const TOUR_STEPS = [
       en: "Have several Google accounts? Pick one here, and Google and YouTube links will open with that account.\n\"Otomatis\" (Auto) lets the browser decide. Choose \"+ Add account…\" to register a new email." } },
 
   { target: "#more-settings",
-    title: { id: "Settings", en: "Settings" },
+    title: { id: "Akun Google (opsional)", en: "Google Account (optional)" },
     text: {
-      id: "Atur aplikasi sesuai seleramu: urutan shortcut dan list, buka di tab baru atau sama, jumlah kolom, tema terang/gelap, dan bahasa.\nDi bagian Advanced ada Backup Otomatis supaya datamu aman.",
-      en: "Adjust the app to your liking: shortcut and list order, open in new or same tab, number of columns, light/dark theme, and language.\nThe Advanced section has Automatic Backup to keep your data safe." } },
+      id: "Punya beberapa akun Google? Aktifkan \"Buka Shortcut dengan Akun Berbeda\" di Settings > Advanced. Setelah aktif, pilihan akun muncul di bar atas dan link Google/YouTube terbuka dengan akun yang dipilih.",
+      en: "Have several Google accounts? Turn on \"Open Shortcuts with Different Accounts\" in Settings > Advanced. Once on, an account picker appears in the top bar and Google/YouTube links open with the chosen account." } },
 
   { target: "#more-info",
     title: { id: "Butuh bantuan lagi?", en: "Need more help?" },

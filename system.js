@@ -12,6 +12,7 @@ function accSetActive(email) { try { localStorage.setItem(SL_ACC_ACTIVE, email);
 
 // Link Google/YouTube diberi ?authuser=email. Link lain dikembalikan apa adanya.
 function withAccount(url) {
+    if (settings.accountPicker === "off") return url;
     const acc = accActive();
     if (!acc) return url;
     try {
@@ -27,8 +28,8 @@ function withAccount(url) {
 function accountPicker(onChange) {
     const sel = document.createElement("select");
     sel.className = "sl-account-select";
-    sel.title = "Pilih akun untuk membuka shortcut";
-    sel.setAttribute("aria-label", "Pilih akun");
+    sel.title = tr("Pilih akun untuk membuka shortcut");
+    sel.setAttribute("aria-label", tr("Pilih akun"));
 
     const add = (value, label) => {
         const o = document.createElement("option");
@@ -100,9 +101,10 @@ const barSelect = document.querySelector("#bar-select");
 
 // Pasang dropdown akun di bar atas, di antara Settings dan angka total.
 function mountAccountPicker() {
+    barHome.querySelector(".sl-account-select")?.remove();
+    if (settings.accountPicker === "off") return;
     const sel = accountPicker(() => { mountAccountPicker(); renderShortcuts(); });
     sel.classList.add("bar-item");
-    barHome.querySelector(".sl-account-select")?.remove();
     barHome.insertBefore(sel, moreCountBtn);
 }
 
@@ -496,7 +498,8 @@ function makeCard(item, listId, listName = null, opens = null) {
     const alwaysNote = settings.alwaysNote === "on";
     const hasNote = item.note.trim() !== "";
     const top = h("div", { class: "shortcut-top" },
-        h("div", { class: "shortcut-logo-wrap" }, faviconImg(item.url, "shortcut-logo")),
+        ...(settings.showLogo === "on"
+            ? [h("div", { class: "shortcut-logo-wrap" }, faviconImg(item.url, "shortcut-logo"))] : []),
         h("div", { class: "shortcut-name", text: item.name }));
 
     // note selalu tampil: tidak perlu tombol buka/tutup (oc-note)
@@ -515,7 +518,7 @@ function makeCard(item, listId, listName = null, opens = null) {
     if (settings.showLink === "on") main.push(h("div", { class: "shortcut-url", text: item.url }));
     const open = hasNote && alwaysNote ? " note-open" : "";
 
-    const card = h("div", { class: `shortcut-box ui-3d${tag.length ? " has-tag" : ""}${item.pinned ? " pinned" : ""}${open}`, "data-id": item.id, "data-list": listId },
+    const card = h("div", { class: `shortcut-box ui-3d${tag.length ? " has-tag" : ""}${item.pinned ? " pinned" : ""}${open}${settings.showLogo === "on" ? "" : " no-logo"}`, "data-id": item.id, "data-list": listId },
         h("div", { class: "shortcut-main" }, ...main),
         ...tag,
         linkOverlay(item));
@@ -644,9 +647,28 @@ function fitAllNotes() {
 window.addEventListener("resize", fitAllNotes);
 document.fonts?.ready.then(fitAllNotes);
 
+// mode "Rapi": semua kartu dalam satu baris setinggi kartu tertinggi (note tampil utuh)
+function equalizeRows() {
+    const cards = [...gridEl.querySelectorAll(".shortcut-box:not(.reco):not(.has-tag)")];
+    cards.forEach((c) => (c.style.minHeight = ""));
+    if (settings.cardHeight !== "even" || !cards.length) return;
+    const rows = new Map();
+    for (const c of cards) {
+        const k = Math.round(c.getBoundingClientRect().top);
+        (rows.get(k) || rows.set(k, []).get(k)).push(c);
+    }
+    for (const row of rows.values()) {
+        const tallest = Math.max(...row.map((c) => c.scrollHeight));
+        row.forEach((c) => (c.style.minHeight = tallest + "px"));
+    }
+}
+const equalizeLater = () => requestAnimationFrame(equalizeRows);
+window.addEventListener("resize", equalizeLater);
+document.fonts?.ready.then(equalizeLater);
+
 function renderShortcuts() {
-    updateCount();   // dari bagian no. 3
-    if (mode().id === "search") { renderSearch(); updateSelectionUI(); return; }
+    updateCount();
+    if (mode().id === "search") { renderSearch(); updateSelectionUI(); renderIndex(); return; }
     const list = findList(currentId);
     const rows = sortItems(list.items.map((item) => ({ item })));
     const cards = rows.length
@@ -655,6 +677,8 @@ function renderShortcuts() {
     gridEl.replaceChildren(...(list.isDefault ? homeView(cards) : cards));
     updateSelectionUI();
     fitAllNotes();
+    equalizeLater();
+    renderIndex();
 }
 
 // dari hasil pencarian: buka list-nya, pilih shortcut-nya, mode kembali ke Add Link
@@ -757,6 +781,7 @@ const cardOf = (e) => e.target.closest?.(".shortcut-box:not(.reco)");
 // Kartu dengan note terbuka mengambil 2 baris grid, naik jadi 3 kalau note belum muat.
 function fitNote(card) {
     card.style.gridRow = "";
+    if (settings.cardHeight === "even") return;   // mode rapi: tinggi diatur CSS, tanpa span baris
     const note = card.querySelector(".shortcut-note");
     if (!note || !card.classList.contains("note-open") || card.classList.contains("has-tag")) return;
     for (const n of [2, 3]) {
@@ -778,6 +803,7 @@ gridEl.addEventListener("click", (e) => {
         if (card) {
             card.classList.toggle("note-open");
             fitNote(card);
+            equalizeLater();
         }
         return;
     }
@@ -1036,7 +1062,8 @@ moreCountBtn.addEventListener("click", () => {
 /* ---------- sinkron dengan tab lain / halaman Settings ---------- */
 function syncFromStorage() {
     reloadState();
-    gridEl.dataset.cols = settings.gridCols;
+    applyGridPrefs();
+    mountAccountPicker();
     selectedShortcuts.clear();
     selectedLists.clear();
     renderLists();
@@ -1048,8 +1075,75 @@ window.addEventListener("storage", (e) => {
 // halaman dipulihkan dari cache tombol Back: skrip tidak jalan ulang, jadi muat ulang data
 window.addEventListener("pageshow", (e) => { if (e.persisted) syncFromStorage(); });
 
+/* ---------- bar indeks A–Z / 0–9 di pinggir kanan ---------- */
+const indexBar = h("nav", { class: "az-bar", "aria-label": "Lompat ke huruf" });
+indexBar.hidden = true;
+document.body.append(indexBar);
+
+const AZ = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"], NUM = [..."0123456789"];
+let azFirst = {};
+
+const initialOf = (name) => {
+    const c = (name || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").charAt(0).toUpperCase();
+    return /[A-Z0-9]/.test(c) ? c : "";
+};
+
+// elemen yang benar-benar bisa di-scroll (grid, atau panel kiri di Home)
+function scrollerOf(el) {
+    for (let p = el?.parentElement; p; p = p.parentElement) {
+        const oy = getComputedStyle(p).overflowY;
+        if ((oy === "auto" || oy === "scroll") && p.scrollHeight > p.clientHeight + 1) return p;
+    }
+    return gridEl;
+}
+const firstCard = () => gridEl.querySelector(".shortcut-box:not(.reco)");
+
+function jumpTo(card) {
+    const sc = scrollerOf(card);
+    const top = sc.scrollTop + card.getBoundingClientRect().top - sc.getBoundingClientRect().top;
+    sc.scrollTo({ top: Math.max(0, top - 8), behavior: "smooth" });
+}
+
+function renderIndex() {
+    const cards = [...gridEl.querySelectorAll(".shortcut-box:not(.reco)")];
+    const show = mode().id !== "search" && settings.shortcutSort !== "custom" && cards.length > 0;
+    document.body.classList.toggle("has-az", show);
+    indexBar.hidden = !show;
+    if (!show) { indexBar.replaceChildren(); azFirst = {}; return; }
+
+    azFirst = {};
+    for (const c of cards) {
+        const k = initialOf(c.querySelector(".shortcut-name")?.textContent);
+        if (k && !azFirst[k]) azFirst[k] = c;
+    }
+    const keys = settings.shortcutSort === "za"
+        ? [...AZ].reverse().concat([...NUM].reverse())
+        : AZ.concat(NUM);
+    const btn = (label, key, aria, on = true) =>
+        h("button", { type: "button", class: "az-btn", "data-k": key, "aria-label": aria, text: label, ...(on ? {} : { disabled: "" }) });
+    indexBar.replaceChildren(
+        btn("▲", "__top", "Ke atas"),
+        ...keys.map((k) => btn(k, k, k, !!azFirst[k])),
+        btn("▼", "__bottom", "Ke bawah"));
+}
+
+indexBar.addEventListener("click", (e) => {
+    const k = e.target.closest("button[data-k]")?.dataset.k;
+    if (!k) return;
+    if (k === "__top" || k === "__bottom") {
+        const sc = scrollerOf(firstCard());
+        sc.scrollTo({ top: k === "__top" ? 0 : sc.scrollHeight, behavior: "smooth" });
+    } else if (azFirst[k]?.isConnected) jumpTo(azFirst[k]);
+});
+
 /* ---------- mulai ---------- */
-gridEl.dataset.cols = settings.gridCols;
+function applyGridPrefs() {
+    gridEl.dataset.cols = settings.gridCols;
+    gridEl.dataset.fit = settings.cardHeight;
+    equalizeLater();
+}
+
+applyGridPrefs();
 navigator.storage?.persist?.();
 mountAccountPicker();
 setMode(0);
