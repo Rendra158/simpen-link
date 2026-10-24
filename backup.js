@@ -32,6 +32,7 @@
             lists: exportData(allIds()),                  // terbaca & bisa dibuka tombol Import
             dataRaw: localStorage.getItem(DATA_KEY),      // semua data persis (urutan, id, dll.)
             settingsRaw: localStorage.getItem(SETTINGS_KEY),
+            foldersRaw: localStorage.getItem(FOLDER_KEY),
         };
     }
     const snapshotOk = (s) => typeof s.dataRaw === "string" && countItems(s.lists) > 0;
@@ -124,7 +125,7 @@
     const origSetItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function (key, value) {
         origSetItem.call(this, key, value);
-        if (this === localStorage && key === DATA_KEY) scheduleBackup();
+        if (this === localStorage && (key === DATA_KEY || key === FOLDER_KEY || key === SETTINGS_KEY)) scheduleBackup();
     };
 
     /* ---------- mulai ---------- */

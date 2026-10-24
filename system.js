@@ -99,6 +99,11 @@ const showBar = (el, on) => el.classList.toggle("bar-hide", !on);
 const barHome = document.querySelector("#bar-home");
 const barSelect = document.querySelector("#bar-select");
 
+const folderEl = document.querySelector("#folder-row");
+const selectedFolders = new Set();
+let viewFolderId = null;
+
+
 // Pasang dropdown akun di bar atas, di antara Settings dan angka total.
 function mountAccountPicker() {
     barHome.querySelector(".sl-account-select")?.remove();
@@ -142,14 +147,6 @@ const modes = [
             return true;
         },
     },
-    {
-        id: "list", icon: "Image/list.svg", hint: "Add List... ", editable: true,
-        run(v) {
-            if (!addList(v)) { alert("List dengan nama itu sudah ada."); return false; }
-            renderLists();
-            return true;
-        },
-    },
     { id: "search", icon: "Image/search.svg", hint: "Search Shortcuts... ", editable: false, run: () => false },
 ];
 
@@ -168,6 +165,7 @@ function setMode(n) {
     icon.src = m.icon;
     textbox.placeholder = m.hint;
     wrapper.className = `textbox-wrapper mode-${m.id}`;
+    renderFolders();
     renderLists();
     renderShortcuts();
     refreshUI();
@@ -236,7 +234,7 @@ textbox.addEventListener("keydown", (e) => {
             textbox.value = "";
             setMode(0);
             flashMode();
-        } else if (selectedShortcuts.size > 0 || selectedLists.size > 0) {
+        } else if (selectedShortcuts.size > 0 || selectedLists.size > 0 || selectedFolders.size > 0) {
             clearSelection();
         }
     } else if (empty && !editing && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
@@ -264,30 +262,31 @@ copyBtn.addEventListener("click", async () => {
 function clearSelection() {
     selectedShortcuts.clear();
     selectedLists.clear();
+    selectedFolders.clear();
     updateSelectionUI();
 }
 
 function updateSelectionUI() {
     const hasShortcuts = selectedShortcuts.size > 0;
     const hasLists = selectedLists.size > 0;
-    const hasAny = hasShortcuts || hasLists;
+    const hasFolders = selectedFolders.size > 0;
+    const hasAny = hasShortcuts || hasLists || hasFolders;
 
     showBar(bulkCount, hasAny);
     showBar(bulkCancelBtn, hasAny);
     showBar(barHome, !hasAny);
     showBar(barSelect, hasAny);
-    bulkCount.textContent = `${selectedShortcuts.size + selectedLists.size} selects`;
-    
-    // list default (Favorite) tidak bisa dihapus, jadi tombol Delete disembunyikan kalau hanya itu yang dipilih
-    const hasDeletable = hasShortcuts || [...selectedLists].some((id) => !findList(id)?.isDefault);
+    bulkCount.textContent = `${selectedShortcuts.size + selectedLists.size + selectedFolders.size} selects`;
+
+    const hasDeletable = hasShortcuts || hasFolders || [...selectedLists].some((id) => !findList(id)?.isDefault);
     showBar(bulkDeleteBtn, hasDeletable);
-    showBar(bulkExportBtn, hasLists);
-    
-    // Edit: tepat 1 shortcut (ubah isi) atau tepat 1 list biasa (ganti nama; pengganti dobel-klik di HP)
-    const oneShortcut = selectedShortcuts.size === 1 && !hasLists;
+    showBar(bulkExportBtn, hasLists || hasFolders);
+
+    const oneShortcut = selectedShortcuts.size === 1 && !hasLists && !hasFolders;
     const oneList = selectedLists.size === 1 && !hasShortcuts && mode().editable
         && !findList([...selectedLists][0])?.isDefault;
-    showBar(bulkEditBtn, oneShortcut || oneList);
+    const oneFolder = selectedFolders.size === 1 && mode().editable;
+    showBar(bulkEditBtn, oneShortcut || oneList || oneFolder);
 
     // Pin: tampil kalau ada shortcut terpilih. Semua sudah pin = tombol "lepas pin".
     showBar(bulkPinBtn, hasShortcuts && !hasLists);
@@ -303,9 +302,14 @@ function updateSelectionUI() {
     document.querySelectorAll(".List button").forEach(btn => {
         btn.classList.toggle("selected", selectedLists.has(btn.dataset.id));
     });
+
+    folderEl.querySelectorAll("button[data-id]").forEach((b) => {
+        b.classList.toggle("selected", selectedFolders.has(b.dataset.id));
+    });
 }
 
 function toggleShortcutSelection(itemId) {
+    selectedFolders.clear();
     selectedLists.clear();   // list dan shortcut tidak boleh terpilih bersamaan
     if (selectedShortcuts.has(itemId)) selectedShortcuts.delete(itemId);
     else selectedShortcuts.add(itemId);
@@ -313,13 +317,33 @@ function toggleShortcutSelection(itemId) {
 }
 
 function toggleListSelection(listId) {
+    selectedFolders.clear();
     selectedShortcuts.clear();   // list dan shortcut tidak boleh terpilih bersamaan
     if (selectedLists.has(listId)) selectedLists.delete(listId);
     else selectedLists.add(listId);
     updateSelectionUI();
 }
 
+function toggleFolderSelection(id) {
+    selectedShortcuts.clear();
+    selectedLists.clear();
+    if (selectedFolders.has(id)) selectedFolders.delete(id);
+    else selectedFolders.add(id);
+    updateSelectionUI();
+}
+
 bulkDeleteBtn.addEventListener("click", () => {
+    if (selectedFolders.size > 0) {
+        const ids = [...selectedFolders];
+        if (ids.length >= folders.length) { alert("Minimal harus ada satu folder."); return; }
+        
+        // TAMBAHAN: Cek pengaturan konfirmasi hapus folder
+        if (settings.confirmDeleteFolder === "on" && !confirm(`Hapus ${ids.length} folder beserta isinya?`)) return;
+        
+        ids.forEach((id) => deleteFolder(id));
+        selectedFolders.clear();
+        renderFolders(); renderLists(); renderShortcuts();
+    }
     if (selectedShortcuts.size > 0) {
         const all = [...selectedShortcuts];
         const isPin = (id) => !!findItem(currentId, id)?.pinned;
@@ -350,8 +374,11 @@ bulkPinBtn.addEventListener("click", () => {
 });
 
 bulkExportBtn.addEventListener("click", async () => {
-    if (selectedLists.size === 0) return;
-    const json = JSON.stringify(exportData([...selectedLists]), null, 2);
+    const listIds = selectedFolders.size
+        ? lists.filter((l) => !l.isDefault && selectedFolders.has(l.folderId)).map((l) => l.id)
+        : [...selectedLists];
+    if (!listIds.length) return;
+    const json = JSON.stringify(exportData(listIds), null, 2);
     try {
         if (window.showSaveFilePicker) {
             const handle = await window.showSaveFilePicker({
@@ -373,6 +400,7 @@ bulkExportBtn.addEventListener("click", async () => {
         if (err.name !== "AbortError") console.error(err);
     }
     selectedLists.clear();
+    selectedFolders.clear();
     updateSelectionUI();
     renderLists();
 });
@@ -388,6 +416,12 @@ bulkEditBtn.addEventListener("click", () => {
         if (!list || list.isDefault || !btn || !mode().editable) return;
         clearSelection();
         startRename(btn, list);
+    } else if (selectedFolders.size === 1) {
+        const id = [...selectedFolders][0];
+        const btn = folderEl.querySelector(`button[data-id="${id}"]`);
+        if (!btn || !mode().editable) return;
+        clearSelection();
+        startRenameFolder(btn, findFolder(id));
     }
 });
 
@@ -466,6 +500,7 @@ function linkOverlay(item) {
     });
 }
 
+
 function renderLists() {
     if (mode().id === "search") {   // mode search: list diganti pilihan pencarian
         listEl.replaceChildren(...SEARCH_OPTS.map(([k, label]) =>
@@ -474,14 +509,67 @@ function renderLists() {
         updateSelectionUI();
         return;
     }
-    listEl.replaceChildren(...getOrderedLists().map((list) => {
-        const btn = h("button", { type: "button", class: list.isDefault ? "favorite" : "", "data-id": list.id });
-        if (list.isDefault) btn.append(h("img", { src: "Image/star.svg", alt: "", draggable: "false" }), list.name);
-        else btn.textContent = list.name;
-        btn.draggable = false;   // urutan list digeser dengan mouse/sentuh buatan sendiri (blok fitList & sentuh)
-        return btn;
-    }));
+
+    listEl.replaceChildren(
+        ...getOrderedLists(viewFolderId || currentFolderId).map((list) => {
+            const btn = h("button", {
+                type: "button",
+                class: list.isDefault ? "favorite" : "",
+                "data-id": list.id
+            });
+
+            if (list.isDefault) {
+                btn.append(
+                    h("img", {
+                        src: "Image/star.svg",
+                        alt: "",
+                        draggable: "false"
+                    }),
+                    list.name
+                );
+            } else {
+                btn.textContent = list.name;
+            }
+
+            btn.draggable = false;   // urutan list digeser dengan mouse/sentuh buatan sendiri (blok fitList & sentuh)
+            return btn;
+        }),
+
+        h("button", {
+            type: "button",
+            class: "add-btn",
+            "aria-label": "Tambah list",
+            text: "+"
+        })
+    );
+
     updateActive();
+    updateSelectionUI();
+}
+
+let lastAktif = null;   // folder aktif pada render sebelumnya
+
+function renderFolders() {
+    const cur = viewFolderId || currentFolderId;
+    const turun = cur !== lastAktif;   // animasi hanya saat folder aktif berganti
+    lastAktif = cur;
+
+    folderEl.replaceChildren(
+        ...getOrderedFolders().map((f) => h("button", {
+            type: "button",
+            class: f.id === cur ? (turun ? "aktif turun" : "aktif") : "",
+            "data-id": f.id,
+            text: f.name
+        })),
+        h("button", { type: "button", class: "add-btn", "aria-label": "Tambah folder", text: "+" })
+    );
+    const a = folderEl.querySelector(".aktif");
+    if (a) {
+        const kiri = a.offsetLeft, kanan = kiri + a.offsetWidth;
+        const lihatKiri = folderEl.scrollLeft, lihatKanan = lihatKiri + folderEl.clientWidth;
+        if (kiri < lihatKiri) folderEl.scrollLeft = kiri;                                  // terpotong di kiri
+        else if (kanan > lihatKanan) folderEl.scrollLeft = kanan - folderEl.clientWidth;   // terpotong di kanan
+    }
     updateSelectionUI();
 }
 
@@ -539,6 +627,10 @@ function matchScore({ name, url, note }, q, by) {
 }
 
 function renderSearch() {
+    const listLabel = (l) => {
+        const f = findFolder(l.folderId)?.name;
+        return l.isDefault || !f ? l.name : `${f}/${l.name}`;
+    };
     const q = textbox.value.trim().toLowerCase();
     if (!q) { gridEl.replaceChildren(); return; }   // belum mengetik: kosong
     const rows = getOrderedLists()
@@ -547,7 +639,7 @@ function renderSearch() {
         .filter((r) => r.s > 0)
         .sort((a, b) => (b.item.pinned ? 1 : 0) - (a.item.pinned ? 1 : 0) || b.s - a.s);   // pin dulu, lalu skor
     gridEl.replaceChildren(...(rows.length
-        ? rows.map(({ item, list }) => makeCard(item, list.id, list.name))
+        ? rows.map(({ item, list }) => makeCard(item, list.id, listLabel(list)))
         : [h("div", { class: "shortcuts-empty", text: "Tidak ada yang cocok." })]));
 }
 
@@ -760,7 +852,7 @@ listEl.addEventListener("keydown", (e) => {
     if (mode().id === "search") return;
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     if (e.target.classList.contains("rename-input")) return;
-    const btns = [...listEl.children];
+    const btns = [...listEl.querySelectorAll("button[data-id]")];   // sebelumnya [...listEl.children]
     const next = btns.findIndex((b) => b.dataset.id === currentId) + (e.key === "ArrowRight" ? 1 : -1);
     if (next < 0 || next >= btns.length) return;
     e.preventDefault();
@@ -774,6 +866,217 @@ listEl.addEventListener("wheel", (e) => {
     listEl.scrollLeft += e.deltaY;   // browser sendiri membatasi di ujung
     e.preventDefault();
 }, { passive: false });
+
+/* ---------- tombol + (list) ---------- */
+listEl.addEventListener("click", (e) => {
+    if (!e.target.closest(".add-btn")) return;
+    const list = addList(uniqueName("New List"));
+    if (!list) return;
+    setCurrent(list.id);
+    renderLists();
+    renderShortcuts();
+    const btn = listEl.querySelector(`button[data-id="${list.id}"]`);
+    if (btn) startRename(btn, list);   // langsung bisa ketik nama
+});
+
+/* ---------- baris folder ---------- */
+const folderBtn = (e) => e.target.closest?.("button[data-id]");
+
+function goFolder(fid) {
+    if (fid === currentFolderId && !viewFolderId) return;   // BARU: folder sama = jangan render ulang
+    if (fid !== currentFolderId) { selectedShortcuts.clear(); selectedLists.clear(); }   // GANTI baris lama
+    openFolder(fid);
+    renderFolders();
+    renderLists();
+    renderShortcuts();
+}
+
+function addFolderInline() {
+    const f = addFolder(uniqueFolderName("New Folder"));
+    if (!f) return;
+    goFolder(f.id);
+    const btn = folderEl.querySelector(`button[data-id="${f.id}"]`);
+    if (btn) startRenameFolder(btn, f);
+}
+
+function startRenameFolder(btn, folder) {
+    const input = h("input", { class: "rename-input" });
+    input.value = folder.name;
+    btn.textContent = "";
+    btn.append(input);
+    input.focus();
+    input.select();
+    let done = false;
+    const finish = (save) => {
+        if (done) return;
+        done = true;
+        const v = input.value.trim();
+        if (save && v && v !== folder.name && !renameFolder(folder.id, v)) alert("Nama folder sudah dipakai.");
+        renderFolders();
+        textbox.focus();
+    };
+    input.addEventListener("keydown", (e) => {
+        if (e.isComposing) return;
+        if (e.key === "Enter") finish(true);
+        if (e.key === "Escape") finish(false);
+    });
+    input.addEventListener("blur", () => finish(true));
+}
+
+folderEl.addEventListener("click", (e) => {
+    if (e.target.closest(".add-btn")) { if (mode().editable) addFolderInline(); return; }
+    const btn = folderBtn(e);
+    if (!btn || e.target.closest(".rename-input")) return;
+    if (coarse.matches && selectedFolders.size > 0) { toggleFolderSelection(btn.dataset.id); return; }
+    goFolder(btn.dataset.id);
+});
+folderEl.addEventListener("contextmenu", (e) => {
+    const btn = folderBtn(e);
+    if (!btn || e.target.closest(".rename-input")) return;
+    e.preventDefault();
+    if (mode().editable) toggleFolderSelection(btn.dataset.id);
+});
+folderEl.addEventListener("dblclick", (e) => {
+    const btn = folderBtn(e);
+    if (btn && mode().editable && selectedFolders.size === 0) startRenameFolder(btn, findFolder(btn.dataset.id));
+});
+folderEl.addEventListener("wheel", (e) => {
+    if (!e.deltaY || e.shiftKey) return;
+    folderEl.scrollLeft += e.deltaY;
+    e.preventDefault();
+}, { passive: false });
+
+/* ---------- Drag & Drop Folder ---------- */
+folderEl.addEventListener("dragstart", (e) => {
+    if (settings.folderSort !== "custom" || !mode().editable) { e.preventDefault(); return; }
+    const btn = folderBtn(e);
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const ids = selectedFolders.has(id) ? [...selectedFolders] : [id];
+    
+    drag = { type: "folder", folderIds: ids };
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", id);
+    ids.forEach(fid => folderEl.querySelector(`button[data-id="${fid}"]`)?.classList.add("dragging"));
+});
+
+folderEl.addEventListener("dragover", (e) => {
+    if (drag?.type !== "folder" || settings.folderSort !== "custom") return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    const btn = folderBtn(e);
+    folderEl.querySelectorAll(".drop-target").forEach(n => n.classList.remove("drop-target"));
+    if (btn && !drag.folderIds.includes(btn.dataset.id)) {
+        btn.classList.add("drop-target");
+    }
+});
+
+folderEl.addEventListener("drop", (e) => {
+    if (drag?.type !== "folder") return;
+    e.preventDefault();
+    const btn = folderBtn(e);
+    const d = drag;
+    endDrag();
+    if (!btn || d.folderIds.includes(btn.dataset.id)) return;
+
+    reorderFolders(d.folderIds, btn.dataset.id);
+    renderFolders();
+    renderLists();
+});
+
+folderEl.addEventListener("dragend", () => {
+    if (drag?.type === "folder") endDrag();
+});
+
+// geser folder dengan mouse: langsung geser = scroll, tahan 300 ms lalu geser = urutkan
+(() => {
+    const HOLD_MS = 300, SCROLL_PX = 5, DRAG_PX = 4;
+    let md = null, timer = null, block = false;
+    const btnAt = (e) => document.elementFromPoint(e.clientX, e.clientY)?.closest("#folder-row button[data-id]");
+    const clearDrop = () => folderEl.querySelectorAll(".drop-target").forEach((n) => n.classList.remove("drop-target"));
+
+    folderEl.addEventListener("mousedown", (e) => {
+        if (e.button !== 0 || e.sourceCapabilities?.firesTouchEvents || e.target.closest(".rename-input")) return;
+        const btn = e.target.closest("button[data-id]");
+        md = {
+            x: e.clientX, y: e.clientY, left: folderEl.scrollLeft, armed: false, mode: null, btn,
+            canDnD: !!btn && settings.folderSort === "custom" && mode().editable,
+        };
+        clearTimeout(timer);
+        timer = setTimeout(() => { if (md && !md.mode) md.armed = true; }, HOLD_MS);
+    });
+
+    document.addEventListener("mousemove", (e) => {
+        if (!md) return;
+        if (!(e.buttons & 1)) { end(e, false); return; }
+        const dx = e.clientX - md.x;
+        if (!md.mode) {
+            if (md.armed && md.canDnD) {
+                if (Math.hypot(dx, e.clientY - md.y) < DRAG_PX) return;
+                md.mode = "drag";
+                const id = md.btn.dataset.id;
+                const ids = selectedFolders.has(id) ? [...selectedFolders] : [id];
+                drag = { type: "folder", folderIds: ids };
+                ids.forEach((i) => folderEl.querySelector(`button[data-id="${i}"]`)?.classList.add("dragging"));
+            } else {
+                if (Math.abs(dx) < SCROLL_PX) return;
+                md.mode = "scroll";
+                clearTimeout(timer);
+            }
+        }
+        if (md.mode === "drag") {
+            clearDrop();
+            edgeScroll(folderEl, e, "x");
+            const t = btnAt(e);
+            if (t && !drag.folderIds.includes(t.dataset.id)) t.classList.add("drop-target");
+        } else {
+            folderEl.scrollLeft = md.left - dx;
+        }
+    });
+
+    function end(e, drop) {
+        if (!md) return;
+        clearTimeout(timer);
+        const m = md;
+        md = null;
+        if (m.mode === "drag" && drag?.type === "folder") {
+            const t = drop ? btnAt(e) : null;
+            const ids = drag.folderIds;
+            endDrag();
+            if (t && !ids.includes(t.dataset.id)) {
+                reorderFolders(ids, t.dataset.id);
+                renderFolders();
+                renderLists();
+            }
+        }
+        if (m.mode) { block = true; setTimeout(() => (block = false), 50); }   // cegah klik setelah geser
+    }
+    document.addEventListener("mouseup", (e) => end(e, true));
+    window.addEventListener("blur", (e) => end(e, false));
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && md?.mode === "drag") end(e, false); });
+    folderEl.addEventListener("click", (e) => {
+        if (block) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
+})();
+
+// drag bawaan (kartu shortcut) di atas folder: tidak boleh dilepas di sini, hanya memindahkan halaman
+folderEl.addEventListener("dragover", (e) => {
+    if (drag?.type !== "item") return;
+    edgeScroll(folderEl, e, "x");
+    hoverFolder(folderBtn(e));
+    if (folderBtn(e) && mode().editable) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }   // BARU
+});
+folderEl.addEventListener("drop", (e) => {
+    e.preventDefault();
+    const btn = folderBtn(e);
+    const d = drag;
+    endDrag();
+    if (!btn || d?.type !== "item" || !mode().editable) return;
+    dropItemsOnList(d, folderLanding(btn.dataset.id));
+});
+folderEl.addEventListener("dragleave", (e) => {
+    if (!folderEl.contains(e.relatedTarget)) { hoverFolder(null); stopAutoScroll(); }
+});
 
 /* ---------- kartu shortcut ---------- */
 const cardOf = (e) => e.target.closest?.(".shortcut-box:not(.reco)");
@@ -869,7 +1172,67 @@ function endDrag() {
         .forEach((el) => el.classList.remove("dragging", "dragover", "drop-target"));
     drag = null;
     stopAutoScroll();
+    cancelHoverFolder();
 }
+
+const folderHover = { id: null, timer: null };
+function hoverFolder(btn) {
+    const id = btn?.dataset.id || null;
+    if (id === folderHover.id) return;
+    clearTimeout(folderHover.timer);
+    folderEl.querySelectorAll(".drop-target").forEach((n) => n.classList.remove("drop-target"));
+    folderHover.id = id;
+    if (!id) return;
+    if (id !== (viewFolderId || currentFolderId)) btn.classList.add("drop-target");
+    folderHover.timer = setTimeout(() => {   // tahan 0,6 detik di atas folder = pindah halaman
+        if (!drag) return;
+        viewFolderId = id === currentFolderId ? null : id;
+        renderFolders();
+        renderLists();
+        listEl.scrollLeft = 0;
+    }, 600);
+}
+function cancelHoverFolder() {   // drag selesai/batal: kembali ke folder semula
+    clearTimeout(folderHover.timer);
+    folderHover.id = null;
+    folderEl.querySelectorAll(".drop-target").forEach((n) => n.classList.remove("drop-target"));
+    if (viewFolderId) { viewFolderId = null; renderFolders(); renderLists(); }
+}
+// setelah drop sukses: kalau pindah folder, ikut berpindah ke list tujuan
+function afterDrop(vf, landId) {
+    if (vf && vf !== currentFolderId && landId) setCurrent(landId);
+    renderFolders();
+    renderLists();
+    renderShortcuts();
+}
+
+// target jatuh di sebuah folder: sub folder terakhir dibuka, atau yang pertama, atau buat baru
+function folderLanding(fid) {
+    const subs = getOrderedLists(fid).filter((l) => !l.isDefault);
+    const last = subs.find((l) => l.id === lastLists[fid]);
+    return (last || subs[0] || addList(uniqueName("New List", fid), fid))?.id || null;
+}
+// pindahkan shortcut yang diseret ke list tujuan, lalu tetap di list asal
+function dropItemsOnList(d, toId) {
+    if (!toId || toId === d.listId) return;
+    let dup = 0;
+    d.itemIds.forEach((id) => {
+        const res = moveShortcut(d.listId, id, toId);
+        if (res === "duplicate") dup++;
+        else if (res) selectedShortcuts.delete(id);
+    });
+    if (dup) alert(`${dup} shortcut dilewati karena URL sama sudah ada di list tujuan.`);
+    renderFolders(); renderLists(); renderShortcuts();
+}
+
+// tujuan jatuh sebuah list: list lain, atau bagian kosong/Home/+ di baris list (= akhir folder)
+function listDropTarget(over) {
+    if (!over?.closest(".List")) return null;
+    const b = over.closest("button[data-id]");
+    if (b && !findList(b.dataset.id)?.isDefault) return { id: b.dataset.id };
+    return { id: null };
+}
+
 document.addEventListener("dragend", endDrag, true);
 
 const auto = { el: null, dx: 0, dy: 0, raf: null };
@@ -917,21 +1280,11 @@ listEl.addEventListener("dragleave", (e) => {
 
 listEl.addEventListener("drop", (e) => {
     e.preventDefault();
-    const btn = listBtn(e);
-    const d = drag;
+    const btn = listBtn(e), d = drag, vf = viewFolderId;
     endDrag();
-    if (!btn || d?.type !== "item" || !mode().editable || btn.dataset.id === d.listId) return;
-
-    let duplicateCount = 0;
-    const itemsToMove = d.itemIds.map((itemId) => findItem(d.listId, itemId)).filter(Boolean);
-    for (const item of itemsToMove) {
-        const res = moveShortcut(d.listId, item.id, btn.dataset.id);
-        if (res === "duplicate") duplicateCount++;
-        else if (res) selectedShortcuts.delete(item.id);
-    }
-    if (duplicateCount > 0) alert(`${duplicateCount} shortcut dilewati karena URL sama sudah ada di list tujuan.`);
-    updateSelectionUI();
-    renderShortcuts();
+    if (!btn || d?.type !== "item" || !mode().editable) return;
+    dropItemsOnList(d, btn.dataset.id);
+    afterDrop(vf, btn.dataset.id);
 });
 
 // --- Shortcut Drag ---
@@ -1055,6 +1408,7 @@ function updateCount() {
 moreCountBtn.addEventListener("click", () => {
     if (!mode().editable) return;   // mode search: tanpa seleksi
     selectedLists.clear();
+    selectedFolders.clear();
     findList(currentId).items.forEach((i) => selectedShortcuts.add(i.id));
     updateSelectionUI();            // bar otomatis pindah ke grup seleksi
 });
@@ -1066,11 +1420,13 @@ function syncFromStorage() {
     mountAccountPicker();
     selectedShortcuts.clear();
     selectedLists.clear();
+    selectedFolders.clear();
+    renderFolders();
     renderLists();
     renderShortcuts();
 }
 window.addEventListener("storage", (e) => {
-    if (e.key === null || e.key === DATA_KEY || e.key === SETTINGS_KEY || e.key === SL_ACC_LIST || e.key === SL_ACC_ACTIVE) syncFromStorage();
+    if (e.key === null || e.key === DATA_KEY || e.key === FOLDER_KEY || e.key === SETTINGS_KEY || e.key === SL_ACC_LIST || e.key === SL_ACC_ACTIVE) syncFromStorage();
 });
 // halaman dipulihkan dari cache tombol Back: skrip tidak jalan ulang, jadi muat ulang data
 window.addEventListener("pageshow", (e) => { if (e.persisted) syncFromStorage(); });
@@ -1106,12 +1462,22 @@ function jumpTo(card) {
 
 function renderIndex() {
     const cards = [...gridEl.querySelectorAll(".shortcut-box:not(.reco)")];
-    const show = mode().id !== "search" && settings.shortcutSort !== "custom" && cards.length > 0;
+    const custom = settings.shortcutSort === "custom";
+    const show = mode().id !== "search" && cards.length > 0;
     document.body.classList.toggle("has-az", show);
     indexBar.hidden = !show;
-    if (!show) { indexBar.replaceChildren(); azFirst = {}; return; }
-
+    indexBar.classList.toggle("az-mini", custom);
     azFirst = {};
+    if (!show) { indexBar.replaceChildren(); return; }
+
+    const btn = (label, key, aria, on = true) =>
+        h("button", { type: "button", class: "az-btn", "data-k": key, "aria-label": aria, text: label, ...(on ? {} : { disabled: "" }) });
+
+    if (custom) {   // urutan custom: hanya tombol ke paling atas / paling bawah
+        indexBar.replaceChildren(btn("▲", "__top", "Ke atas"), btn("▼", "__bottom", "Ke bawah"));
+        return;
+    }
+
     for (const c of cards) {
         const k = initialOf(c.querySelector(".shortcut-name")?.textContent);
         if (k && !azFirst[k]) azFirst[k] = c;
@@ -1119,8 +1485,6 @@ function renderIndex() {
     const keys = settings.shortcutSort === "za"
         ? [...AZ].reverse().concat([...NUM].reverse())
         : AZ.concat(NUM);
-    const btn = (label, key, aria, on = true) =>
-        h("button", { type: "button", class: "az-btn", "data-k": key, "aria-label": aria, text: label, ...(on ? {} : { disabled: "" }) });
     indexBar.replaceChildren(
         btn("▲", "__top", "Ke atas"),
         ...keys.map((k) => btn(k, k, k, !!azFirst[k])),
@@ -1155,6 +1519,7 @@ setMode(0);
     function fitList() {
         if (touching || drag) return;
         const btns = [...listEl.querySelectorAll("button")];
+        const isAdd = (b) => b.classList.contains("add-btn");
         const W = listEl.clientWidth;
         const n = btns.length;
         if (!n || !W) return;
@@ -1199,14 +1564,14 @@ setMode(0);
         // 4) tombol yang tampil: dari s sampai end (semua yang muat utuh)
         let end = s;
         while (end + 1 < n && R[end + 1] - L[s] <= W + 1) end++;
-        const count = end - s + 1;
+        const count = Math.max(1, end - s + 1 - (isAdd(btns[end]) ? 1 : 0));
         const add = Math.max(0, (W - (R[end] - L[s])) / count);   // sisa ruang dibagi rata
         const pad = parseFloat(getComputedStyle(btns[s]).paddingLeft) || 0;
 
         btns.forEach((b, i) => {
             const on = i >= s && i <= end;
             b.style.visibility = on || b === document.activeElement ? "visible" : "hidden";
-            if (!on || add < 0.5) return;
+            if (!on || add < 0.5 || isAdd(b)) return;
             if (b.classList.contains("aktif")) b.style.minWidth = R[i] - L[i] + add + "px";
             else {
                 b.style.paddingLeft = pad + add / 2 + "px";
@@ -1264,7 +1629,7 @@ setMode(0);
         if (e.button !== 0 || e.sourceCapabilities?.firesTouchEvents || e.target.closest(".rename-input")) return;
         const btn = e.target.closest("button[data-id]");
         const list = btn && findList(btn.dataset.id);
-        const canDnD = !!list && !list.isDefault && settings.listSort === "custom" && mode().editable;
+        const canDnD = !!list && !list.isDefault && mode().editable;
         md = { x: e.clientX, y: e.clientY, left: listEl.scrollLeft, armed: false, mode: null, canDnD, btn };
         touching = true;             // tahan fitList selama mouse ditekan
         clearTimeout(timer);
@@ -1273,24 +1638,24 @@ setMode(0);
         mdTimer = setTimeout(() => { if (md && !md.mode) md.armed = true; }, HOLD_MS);
     });
 
-    const dropBtn = (e) => {
-        const t = document.elementFromPoint(e.clientX, e.clientY)?.closest("button[data-id]");
-        const ok = t && listEl.contains(t) && drag?.type === "list"
-            && !drag.listIds.includes(t.dataset.id) && !findList(t.dataset.id)?.isDefault;
-        return ok ? t : null;
+    const dropTarget = (e) => {
+        if (drag?.type !== "list") return null;
+        const t = listDropTarget(document.elementFromPoint(e.clientX, e.clientY));
+        return t && !drag.listIds.includes(t.id) ? t : null;
     };
+    function moveListDrag(e) {
+        listEl.querySelectorAll(".drop-target").forEach((n) => n.classList.remove("drop-target"));
+        edgeScroll(listEl, e, "x");
+        hoverFolder(document.elementFromPoint(e.clientX, e.clientY)?.closest("#folder-row button[data-id]"));
+        const t = dropTarget(e);
+        if (t?.id) listEl.querySelector(`button[data-id="${t.id}"]`)?.classList.add("drop-target");
+    }
 
     function startListDrag() {
         const id = md.btn.dataset.id;
         const ids = selectedLists.has(id) ? [...selectedLists].filter((i) => !findList(i)?.isDefault) : [id];
         drag = { type: "list", listIds: ids };
         ids.forEach((i) => listEl.querySelector(`button[data-id="${i}"]`)?.classList.add("dragging"));
-    }
-
-    function moveListDrag(e) {
-        listEl.querySelectorAll(".drop-target").forEach((n) => n.classList.remove("drop-target"));
-        edgeScroll(listEl, e, "x");
-        dropBtn(e)?.classList.add("drop-target");
     }
 
     document.addEventListener("mousemove", (e) => {
@@ -1323,13 +1688,13 @@ setMode(0);
         listEl.classList.remove("grabbing");
         lockScroll(false);
         if (m.mode === "drag" && drag?.type === "list") {
-            const target = e.type === "mouseup" ? dropBtn(e) : null;   // batal = tidak ada drop
-            const ids = drag.listIds;
-            endDrag();               // bersihkan kelas, hentikan auto-scroll, drag = null
+            const target = e.type === "mouseup" ? dropTarget(e) : null;   // batal = tidak ada drop
+            const ids = drag.listIds, vf = viewFolderId;
+            endDrag();
             suppressClick();
             if (target) {
-                reorderLists(ids, target.dataset.id);
-                renderLists();
+                reorderLists(ids, target.id, vf || currentFolderId);
+                afterDrop(vf, ids[0]);
             }
         } else if (m.mode) {
             suppressClick();
@@ -1368,6 +1733,7 @@ setMode(0);
     let timer = null, startPt = null, pending = null;
     let held = false, moved = false, touching = false, suppressUntil = 0;
 
+    const SEL_FOLDER = "#folder-row button[data-id]";
     const SEL_LIST = ".List button[data-id]";
     const at = (t) => document.elementFromPoint(t.clientX, t.clientY);
     const okList = (btn) => drag.type === "pin" ? false
@@ -1377,17 +1743,16 @@ setMode(0);
     const okCard = (card) => canDropOn(card) && !drag.itemIds.includes(card.dataset.id);
 
     function canDrag(kind, id) {
-        if (!mode().editable) return false;
-        if (kind === "pin") return settings.pinSort === "custom";
-        if (kind === "list") {
-            const list = findList(id);
-            return !!list && !list.isDefault && settings.listSort === "custom";
-        }
-        return true;
-    }
+    if (!mode().editable) return false;
+    if (kind === "folder") return settings.folderSort === "custom"; 
+    if (kind === "pin") return settings.pinSort === "custom";
+    if (kind === "list") { const list = findList(id); return !!list && !list.isDefault; }
+    return true;
+}
     function toggle(kind, id) {
-        if (kind === "pin") return;   // kartu panel kanan tidak bisa dipilih
-        if (kind === "list") toggleListSelection(id);
+        if (kind === "pin") return;
+        if (kind === "folder") toggleFolderSelection(id);
+        else if (kind === "list") toggleListSelection(id);
         else toggleShortcutSelection(id);
         navigator.vibrate?.(30);
     }
@@ -1405,28 +1770,32 @@ setMode(0);
         } else if (kind === "pin") {
             drag = { type: "pin", itemIds: [id] };
             el.classList.add("dragging");
+        } else if (kind === "folder") {
+            const ids = selectedFolders.has(id) ? [...selectedFolders] : [id];
+            drag = { type: "folder", folderIds: ids };
+            ids.forEach((i) => folderEl.querySelector(`button[data-id="${i}"]`)?.classList.add("dragging"));
         } else {
             const ids = selectedShortcuts.has(id) ? [...selectedShortcuts] : [id];
             drag = { type: "item", listId: currentId, itemIds: ids };
             ids.forEach((i) => gridEl.querySelector(`.shortcut-box[data-id="${i}"]:not(.reco)`)?.classList.add("dragging"));
-        }
-        navigator.vibrate?.(30);
+    }
+    navigator.vibrate?.(30);
     }
 
     document.addEventListener("touchstart", (e) => {
         touching = true;
         held = false;
         moved = false;
-        const el = e.target.closest?.(`${SEL_LIST}, .shortcut-box:not(.reco), .pin-card`);
+        const el = e.target.closest?.(`${SEL_LIST}, ${SEL_FOLDER}, .shortcut-box:not(.reco), .pin-card`);
         if (e.touches.length !== 1 || !el || !mode().editable || e.target.closest(".note-toggle, .rename-input, .list-tag")) return;
         startPt = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        pending = { kind: el.matches(".pin-card") ? "pin" : el.matches(".shortcut-box") ? "item" : "list", el };
+        pending = { kind: el.matches(".pin-card") ? "pin" : el.matches(".shortcut-box") ? "item" : el.matches(SEL_FOLDER) ? "folder" : "list", el };
         timer = setTimeout(onHold, HOLD);
     }, { passive: true });
 
     document.addEventListener("touchmove", (e) => {
         const t = e.touches[0];
-        if (!held) {  // geser sebelum 400 ms = swipe/scroll biasa
+        if (!held) {
             if (timer && Math.hypot(t.clientX - startPt.x, t.clientY - startPt.y) > MOVE) {
                 clearTimeout(timer);
                 timer = null;
@@ -1434,17 +1803,24 @@ setMode(0);
             }
             return;
         }
-        if (!drag) return;   // sudah dipilih saat tahan: biarkan scroll biasa
+        if (!drag) return;
         if (!moved && Math.hypot(t.clientX - startPt.x, t.clientY - startPt.y) > MOVE) moved = true;
         if (e.cancelable) e.preventDefault();
         document.querySelectorAll(".dragover, .drop-target").forEach((n) => n.classList.remove("dragover", "drop-target"));
         const over = at(t);
-        if (drag.type === "pin") {   // pin: hanya bisa jatuh di kartu pin lain
+        if (drag.type === "pin") {
             const pc = over?.closest(".pin-card");
             if (pc && !drag.itemIds.includes(pc.dataset.id)) pc.classList.add("dragover");
             edgeScroll(gridEl, t, "y");
             return;
         }
+        if (drag.type === "folder") {
+            const btn = over?.closest(SEL_FOLDER);
+            if (btn && !drag.folderIds.includes(btn.dataset.id)) btn.classList.add("drop-target");
+            edgeScroll(folderEl, t, "x");
+            return;
+        }
+        hoverFolder(over?.closest(SEL_FOLDER));
         const btn = over?.closest(SEL_LIST);
         const card = over?.closest(".shortcut-box");
         if (btn && okList(btn)) btn.classList.add("drop-target");
@@ -1466,6 +1842,7 @@ setMode(0);
         if (e.cancelable) e.preventDefault();   // cegah klik (buka link) setelah tahan/drag
         const t = e.changedTouches?.[0];
         const over = drop && t && wasMoved ? at(t) : null;
+        const vf = viewFolderId;
         endDrag();
         if (!d) return;                         // sudah dipilih saat tahan
         if (!wasMoved) {                        // tahan lalu lepas: pilih / lepas pilihan
@@ -1473,6 +1850,14 @@ setMode(0);
             return;
         }
         if (!over) return;
+        if (d.type === "folder") {
+            const tg = over.closest(SEL_FOLDER);
+            if (!tg || d.folderIds.includes(tg.dataset.id)) return;
+            reorderFolders(d.folderIds, tg.dataset.id);
+            renderFolders();
+            renderLists();
+            return;
+        }
         if (d.type === "pin") {
             const pc = over.closest(".pin-card");
             if (pc) dropPin(d.itemIds, pc.dataset.id);
@@ -1482,9 +1867,10 @@ setMode(0);
         const card = over.closest(".shortcut-box");
 
         if (d.type === "list") {
-            if (!btn || d.listIds.includes(btn.dataset.id) || findList(btn.dataset.id).isDefault) return;
-            reorderLists(d.listIds, btn.dataset.id);
-            renderLists();
+            const tg = listDropTarget(over);
+            if (!tg || d.listIds.includes(tg.id)) return;
+            reorderLists(d.listIds, tg.id, vf || currentFolderId);
+            afterDrop(vf, d.listIds[0]);
         } else if (btn) {
             if (btn.dataset.id === d.listId) return;
             let dup = 0;
@@ -1494,8 +1880,9 @@ setMode(0);
                 else if (res) selectedShortcuts.delete(id);
             });
             if (dup) alert(`${dup} shortcut dilewati karena URL sama sudah ada di list tujuan.`);
-            updateSelectionUI();
-            renderShortcuts();
+            afterDrop(vf, btn.dataset.id);
+        } else if (over.closest(SEL_FOLDER) && d.type === "item") {   // BARU: jatuh langsung di folder
+            dropItemsOnList(d, folderLanding(over.closest(SEL_FOLDER).dataset.id));
         } else if (card && canDropOn(card, d) && !d.itemIds.includes(card.dataset.id)) {
             reorderShortcuts(d.listId, d.itemIds, card.dataset.id);
             renderShortcuts();
@@ -1543,3 +1930,16 @@ setMode(0);
         refreshUI();
     });
 })();
+
+/* ---------- Ctrl+A: blok semua folder / list / shortcut yang sedang dipilih ---------- */
+document.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "a" || !mode().editable) return;
+    const a = document.activeElement;
+    if (a?.matches?.("input, textarea, select") && !(a === textbox && !textbox.value)) return;
+    if (selectedFolders.size) folders.forEach((f) => selectedFolders.add(f.id));
+    else if (selectedLists.size) getOrderedLists(viewFolderId || currentFolderId).forEach((l) => selectedLists.add(l.id));
+    else if (selectedShortcuts.size) findList(currentId).items.forEach((i) => selectedShortcuts.add(i.id));
+    else return;
+    e.preventDefault();
+    updateSelectionUI();
+});

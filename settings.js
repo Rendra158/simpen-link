@@ -94,10 +94,12 @@ function makeAdvancedRows() {
       const b = JSON.parse(text);
       if (b?.app !== "simpen.link" || typeof b.dataRaw !== "string") { alert("File backup tidak valid."); return; }
       JSON.parse(b.dataRaw);
+      if (typeof b.foldersRaw === "string") JSON.parse(b.foldersRaw);   // BARU (di dekat validasi lain)
       if (typeof b.settingsRaw === "string") JSON.parse(b.settingsRaw);
       if (!confirm("Data saat ini akan diganti dengan isi file backup. Lanjut?")) return;
       if (typeof b.settingsRaw === "string") localStorage.setItem(SETTINGS_KEY, b.settingsRaw);
       localStorage.setItem("ShortcutData2", b.dataRaw);   // sama dengan DATA_KEY di data.js
+      if (typeof b.foldersRaw === "string") localStorage.setItem("ShortcutFolders", b.foldersRaw);
       if (fh) {   // backup berikutnya otomatis ke file ini
         await bkRun("readwrite", (s) => s.put(fh, BK.key)).catch(() => {});
         await fh.requestPermission({ mode: "readwrite" }).catch(() => {});
@@ -149,9 +151,16 @@ SECTIONS.forEach((s) => {
   btn.addEventListener("click", () => setActiveSection(s.id));
   sidebar.append(btn);
 
+  const defs = SETTING_DEFS.filter((d) => d.section === s.id);
+  const rows = [];
+  defs.forEach((d, i) => {
+    if (i > 0 && d.group !== defs[i - 1].group) rows.push(h("div", { class: "s-divider" }));   // garis pemisah
+    rows.push(makeField(d));
+  });
+
   page.append(h("div", { class: "s-group", "data-section": s.id },
     h("div", { class: "s-list" },
-      ...SETTING_DEFS.filter((d) => d.section === s.id).map(makeField),
+      ...rows,
       ...(s.id === "advanced" ? makeAdvancedRows() : []))));
 });
 
@@ -171,3 +180,4 @@ setActiveSection(location.hash === "#info" ? "info" : SECTIONS[0].id);
 document.querySelector("#p-back-btn").addEventListener("click", () => {
   window.location.href = "index.html";
 });
+

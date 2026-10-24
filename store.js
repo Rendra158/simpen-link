@@ -5,10 +5,10 @@ const ON_OFF = [["on", "Aktif"], ["off", "Nonaktif"]];
 const YES_NO = [["on", "Ya"], ["off", "Tidak"]];
 
 const SECTIONS = [
-  { id: "shortcut", label: "Shortcut" },
-  { id: "list", label: "List" },
-  { id: "tampilan", label: "Tampilan" },
-  { id: "advanced", label: "Advanced" },
+    { id: "shortcut", label: "Shortcut" },
+    { id: "list_folder", label: "List / Folder" },
+    { id: "tampilan", label: "Tampilan" },
+    { id: "advanced", label: "other" },
 ];
 
 // Halaman Settings dibuat dari daftar ini. Tambah setting = tambah satu baris.
@@ -27,11 +27,14 @@ const SETTING_DEFS = [
   { key: "allowDuplicate", section: "shortcut", label: "Shortcut Duplikat", def: "on", options: ON_OFF },
   { key: "moveMode", section: "shortcut", label: "Pindah Shortcut ke List Lain", def: "cut",
     options: [["cut", "Cut (Dipindah)"], ["copy", "Duplikat (Disalin)"]] },
-  { key: "importMode", section: "list", label: "Import List Bernama Sama", def: "new",
-    options: [["new", "Buat Baru"], ["overwrite", "Timpa yang Ada"]] },
-  { key: "listSort", section: "list", label: "Urutan List", def: "custom",
+  { key: "folderSort", section: "list_folder", group: "folder", label: "Urutan Folder", def: "custom",
+    options: [["custom", "Custom (Drag & Drop)"], ["az", "Nama A–Z"], ["za", "Nama Z–A"], ["09", "0–9"], ["90", "9–0"]] },
+  { key: "confirmDeleteFolder", section: "list_folder", group: "folder", label: "Konfirmasi Hapus Folder", def: "on", options: ON_OFF },
+  { key: "listSort", section: "list_folder", group: "list", label: "Urutan List", def: "custom",
     options: [["custom", "Custom"], ["az", "Nama A–Z"], ["za", "Nama Z–A"], ["newest", "Terbaru"], ["oldest", "Terlama"]] },
-  { key: "confirmDelete", section: "list", label: "Konfirmasi Penghapusan", def: "on", options: ON_OFF },
+  { key: "importMode", section: "list_folder", group: "list", label: "Import List Bernama Sama", def: "new",
+    options: [["new", "Buat Baru"], ["overwrite", "Timpa yang Ada"]] },
+  { key: "confirmDelete", section: "list_folder", group: "list", label: "Konfirmasi Penghapusan", def: "on", options: ON_OFF },
   { key: "gridCols", section: "tampilan", label: "Kolom Grid", def: "3",
     options: [1, 2, 3, 4, 5].map((n) => [String(n), `${n} Kolom`]) },
   { key: "theme", section: "tampilan", label: "Tema", def: "auto",
@@ -153,6 +156,9 @@ const EN = {
   "Tampilkan Logo Website": "Show Website Logo",
   "Buka Shortcut dengan Akun Berbeda": "Open Shortcuts with Different Accounts",
   "Hapus Semua Data": "Delete All Data",
+  "List / Folder": "List / Folder",
+  "Urutan Folder": "Folder Order",
+  "Konfirmasi Hapus Folder": "Confirm Folder Deletion",
   // Akun
   "Otomatis": "Auto",
   "+ Tambah akun…": "+ Add account…",
@@ -197,6 +203,8 @@ const EN = {
   "Terakhir dipakai": "Recently used",
   "Belum ada data.": "No data yet.",
   "Nama": "Name",
+  "Nama folder sudah dipakai.": "That folder name is already in use.",
+  "Minimal harus ada satu folder.": "At least one folder is required.",
   // Tour
   "Lewati": "Skip",
   "Kembali": "Back",
@@ -217,6 +225,7 @@ const EN_RE = [
   [/^File: (.*) — aktif$/, "File: $1 — active"],
   [/^File: (.*) — perlu izin \(buka halaman utama, klik sekali, lalu izinkan\)$/, "File: $1 — permission needed (open the main page, click once, then allow)"],
   [/^Hapus akun (.*) dari daftar\?$/, "Remove account $1 from the list?"],
+  [/^Hapus (\d+) folder beserta isinya\?$/, "Delete $1 folders and their contents? "],
 ];
 
 const tr = (s) => {
@@ -236,7 +245,7 @@ if (settings.language === "en") {
   window.prompt = (m, d) => _prompt(tr(m), d);
 
   // teks di halaman otomatis diterjemahkan (data buatan pengguna dilewati)
-  const SKIP = ".shortcut-name, .shortcut-url, .shortcut-note, .list-tag, .rename-input, .List button, textarea, script, style";
+  const SKIP = ".shortcut-name, .shortcut-url, .shortcut-note, .list-tag, .rename-input, .List button, textarea, script, style, .folder-row button";
   const fix = (root) => {
     const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     for (let n; (n = w.nextNode()); ) {

@@ -12,7 +12,9 @@
   --shortcut-h: 90px;
   --fade-h: 160px;
 
-  --bar-h: 45px;
+  --bar-row-h: 50px;
+  --folder-h: 44px;
+  --bar-h: var(--bar-row-h);
 
   /* List kategori */
   --list-h: 40px;
@@ -44,6 +46,10 @@
   --set-page-pad: 12px 4px;
 
 }
+
+:root:has(body.page-home) { --bar-h: calc(var(--bar-row-h) + var(--folder-h)); }
+.page-home .bar { flex-direction: column; justify-content: flex-start; align-items: stretch; }
+.bar-top { display: flex; align-items: center; justify-content: center; flex: 0 0 var(--bar-row-h); height: var(--bar-row-h); }
 
 /* ---------- 2. DASAR (semua layar) ---------- */
 html, body { height: 100%; margin: 0; }
@@ -140,7 +146,8 @@ html, body { height: 100%; margin: 0; }
 /* ---------- 4. HP (<= 768px) ---------- */
 @media (max-width: 768px) {
   :root {
-    --bar-h: 38px;
+    --bar-row-h: 38px;
+    --folder-h: 34px;
     --textbox-h: 34px;
     --textbox-bottom: 16px;
     --mode-hit-w: 60px;

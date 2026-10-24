@@ -491,6 +491,24 @@ transition: transform 0.3s ease;
     align-items: center;
 }
 
+/* garis pembatas antara bar atas dan baris folder: selebar tombol yang tampil (Home maupun Select) */
+.page-home .bar-top .bar-group {
+    align-self: stretch;
+    position: relative;
+    padding-bottom: 6px;
+}
+.page-home .bar-top .bar-group::after {
+    content: "";
+    position: absolute;
+    left: 5px;               /* sama dengan margin tombol */
+    right: 5px;
+    bottom: 0;
+    height: 2px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--c-navy) 35%, transparent);
+    pointer-events: none;
+}
+
 /* grup yang tidak aktif disembunyikan total (bukan digeser) */
 .bar .bar-group.bar-hide { display: none; }
 
@@ -535,11 +553,15 @@ transition: transform 0.3s ease;
     .bar .bar-item { margin: 0 2px; }
     .bar .LV-bar { margin: 0 6px; }
     .bar .bulk-btn.bar-item:not(.bar-hide) { padding: 6px 6px; font-size: 12px; }
+    .page-home .bar-top .bar-group::after { left: 2px; right: 2px; }
+    
 }
 /* layar sangat sempit: jumlah terpilih disembunyikan supaya tombol muat */
 @media (max-width: 480px) {
     .bar span.bar-item { display: none; }
 }
+
+
 
 .bulk-btn {
     padding: 6px 14px;
@@ -601,10 +623,11 @@ transition: transform 0.3s ease;
     background-color: var(--c-selected-bg);
 }
 
-.List button.selected {
-    background-color: var(--c-green) !important;
-    outline: 2px solid #1e7d3c;
-    outline-offset: -2px;
+.List button.selected,
+.List:focus-within button.selected,
+.folder-row button.selected {
+    outline: 3px solid #1e9e4a !important;
+    outline-offset: -3px;
 }
 
 /* Shortcut yang dipin */
@@ -718,4 +741,174 @@ body .shortcuts-grid[data-fit="even"] .shortcut-box.note-open .shortcut-note {
     max-height: none;
     overflow: visible;
     white-space: normal;
+}
+
+
+/* ---------- baris folder Simpen.Link ---------- */
+.folder-row {
+    position: relative;
+    flex: 0 0 var(--folder-h);
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+    height: var(--folder-h);
+    padding: 0 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior: none;
+    scrollbar-width: none;
+    touch-action: pan-x;
+    user-select: none;
+    background: transparent;   /* ikut biru bar */
+}
+.folder-row::-webkit-scrollbar { display: none; }
+
+/* Folder tidak aktif: teks polos, menyala saat di-hover */
+.folder-row button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin: 9px 0 9px;   /* bawah lebih besar: ruang untuk bayangan tebal pil aktif */
+    padding: 0 14px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: color-mix(in srgb, var(--c-navy) 85%, transparent);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    -webkit-touch-callout: none;
+    transition: background-color 150ms ease, color 150ms ease;
+}
+.folder-row button:hover:not(.aktif):not(.add-btn) {
+    background: rgba(255, 255, 255, 0.3);
+    color: var(--c-navy);
+}
+.folder-row button::after { display: none; }
+
+/* Folder aktif: pil putih timbul, sama seperti tombol Settings/Info di bar */
+.folder-row button.aktif {
+    background: #fff !important;
+    color: var(--c-navy) !important;
+    font-weight: 800;
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.2);
+}
+@keyframes folder-pop {
+    from { transform: translateY(-4px) scale(0.9); opacity: 0.4; }
+    to   { transform: none; opacity: 1; }
+}
+.folder-row button.aktif.turun {
+    animation: folder-pop 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+    .folder-row button.aktif.turun { animation: none; }
+}
+
+/* Folder terpilih (blok) */
+.folder-row button.selected:not(.aktif) {
+    background: color-mix(in srgb, #1e9e4a 40%, #ffffff);
+    color: var(--c-navy);
+}
+
+/* Tombol tambah folder */
+.folder-row button.add-btn {
+    padding: 0 14px;
+    font-size: 15px;
+    font-weight: 900;
+    color: var(--c-navy);
+    background: rgba(255, 255, 255, 0.35);
+}
+/* Drag-and-drop folder */
+.folder-row button.dragging {
+    opacity: 0.45;
+}
+
+.folder-row button.drop-target {
+    outline: 2px dashed #1e7d3c;
+    outline-offset: -3px;
+}
+
+/* Input saat mengganti nama folder */
+.folder-row .rename-input {
+    width: 10ch;
+    padding: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* ---------- scrollbar folder ---------- */
+.fscroll {
+    display: none;
+    background: color-mix(in srgb, var(--c-blue) 22%, var(--c-bg));
+}
+
+body.show-fscroll .fscroll {
+    display: flex;
+    align-items: flex-end;
+    flex: 0 0 var(--fscroll-h);
+    height: var(--fscroll-h);
+    padding-bottom: 3px;
+}
+
+.fscroll-track {
+    position: relative;
+    width: calc(100% - 20px);
+    height: 5px;
+    margin: 0 auto;
+    border-radius: 999px;
+    background: rgba(18, 58, 99, 0.18);
+    cursor: pointer;
+}
+
+.fscroll-track::before {
+    content: "";
+    position: absolute;
+    inset: -6px 0;
+}
+
+.fscroll-thumb {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 30%;
+    border-radius: 999px;
+
+    background: color-mix(
+        in srgb,
+        var(--c-blue) 55%,
+        var(--c-navy)
+    );
+
+    cursor: grab;
+    touch-action: none;
+}
+
+.fscroll-thumb:active {
+    cursor: grabbing;
+}
+
+.fscroll-thumb.idle {
+    opacity: 0.3;
+    cursor: default;
+    pointer-events: none;
+}
+
+/* tombol ▲ ▼ saja (urutan shortcut custom) */
+.az-bar.az-mini { gap: 6px; padding: 6px 3px; }
+.az-bar.az-mini .az-btn { flex: 0 0 28px; width: 26px; height: 28px; font-size: 13px; }
+
+@media (max-width: 768px) {
+    .folder-row button { margin: 7px 0 7px; }
+    .folder-row button { font-size: 11px; padding: 0 14px; }
+    .folder-row button.add-btn { font-size: 16px; padding: 0 14px; }
 }
