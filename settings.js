@@ -132,6 +132,24 @@ function makeAdvancedRows() {
     actions.append(btn("Backup sekarang", backupNow), btn("Ganti file", pick), btn("Putuskan", unlink), restoreBtn);
   }
 
+  function removeDuplicates() {
+    const data = readJSON("ShortcutData2");   // sama dengan DATA_KEY di data.js
+    if (!Array.isArray(data)) { alert("Belum ada data."); return; }
+    const norm = (u) => { try { const x = new URL(u); return x.origin + x.pathname.replace(/\/+$/, "") + x.search + x.hash; } catch { return u; } };
+    const all = data.flatMap((l) => l.items || []);
+    const seen = new Set(), keep = new Set();
+    [...all.filter((i) => i.pinned), ...all.filter((i) => !i.pinned)].forEach((i) => {   // yang dipin dipertahankan dulu
+      const k = norm(i.url);
+      if (!seen.has(k)) { seen.add(k); keep.add(i); }
+    });
+    const n = all.length - keep.size;
+    if (!n) { alert("Tidak ada shortcut duplikat."); return; }
+    if (!confirm(`Hapus ${n} shortcut duplikat di semua folder?`)) return;
+    data.forEach((l) => { l.items = (l.items || []).filter((i) => keep.has(i)); });
+    localStorage.setItem("ShortcutData2", JSON.stringify(data));
+    alert(`${n} shortcut duplikat dihapus.`);
+  }
+
   const wipeBtn = btn("Hapus Semua Data", askWipeAll);
   wipeBtn.style.color = "#d33";
   wipeBtn.style.borderColor = "#d33";
@@ -140,6 +158,7 @@ function makeAdvancedRows() {
   return [
     h("div", { class: "s-row" }, h("div", { class: "s-label", text: "Backup Otomatis" }), actions),
     h("div", { class: "s-row" }, status),
+    h("div", { class: "s-row" }, h("div", { class: "s-label", text: "Hapus Shortcut Duplikat" }), btn("Hapus Duplikat", removeDuplicates)),
     h("div", { class: "s-row" }, h("div", { class: "s-label", text: "Hapus Semua Data" }), wipeBtn),
   ];
 }

@@ -378,21 +378,23 @@ bulkExportBtn.addEventListener("click", async () => {
         ? lists.filter((l) => !l.isDefault && selectedFolders.has(l.folderId)).map((l) => l.id)
         : [...selectedLists];
     if (!listIds.length) return;
-    const json = JSON.stringify(exportData(listIds), null, 2);
+    const fmt = await askChoice("Export sebagai:", [["json", "JSON", "bulk-export"], ["html", "HTML", "bulk-edit"], [null, "Batal", "bulk-cancel"]]);
+    if (!fmt) return;   // Batal: seleksi dibiarkan
+    const isJson = fmt === "json";
+    const text = isJson ? JSON.stringify(exportFull(listIds, [...selectedFolders]), null, 2) : exportHtml(listIds);
+    const name = isJson ? "shortcuts-export.json" : "shortcuts-bookmarks.html";
+    const mime = isJson ? "application/json" : "text/html";
     try {
         if (window.showSaveFilePicker) {
             const handle = await window.showSaveFilePicker({
-                suggestedName: "shortcuts-export.json",
-                types: [{ description: "JSON File", accept: { "application/json": [".json"] } }],
+                suggestedName: name,
+                types: [{ description: isJson ? "JSON File" : "HTML File", accept: { [mime]: [isJson ? ".json" : ".html"] } }],
             });
             const w = await handle.createWritable();
-            await w.write(json);
+            await w.write(text);
             await w.close();
         } else {
-            const a = h("a", {
-                href: URL.createObjectURL(new Blob([json], { type: "application/json" })),
-                download: "shortcuts-export.json",
-            });
+            const a = h("a", { href: URL.createObjectURL(new Blob([text], { type: mime })), download: name });
             a.click();
             setTimeout(() => URL.revokeObjectURL(a.href), 1000);
         }
@@ -614,6 +616,26 @@ function makeCard(item, listId, listName = null, opens = null) {
     if (hasNote) card.insertBefore(h("div", { class: "shortcut-note", text: item.note }), card.lastChild);
     card.draggable = true;
     return card;
+}
+
+// Dialog pilihan. choices = [[nilai, label, kelas tombol]]. Klik luar / Esc = null (batal).
+function askChoice(title, choices) {
+    return new Promise((done) => {
+        const close = (v) => { document.removeEventListener("keydown", esc, true); box.remove(); done(v); };
+        const esc = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(null); } };
+        const box = h("div", { style: "position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45)" },
+            h("div", { style: "background:var(--c-surface);color:var(--c-ink);padding:18px 22px;border-radius:14px;max-width:90%;display:flex;flex-direction:column;gap:14px;text-align:center" },
+                h("div", { text: title, style: "font-weight:bold;white-space:pre-wrap" }),
+                h("div", { style: "display:flex;gap:8px;justify-content:center;flex-wrap:wrap" },
+                    ...choices.map(([v, label, cls]) => {
+                        const b = h("button", { type: "button", class: `bulk-btn ${cls}`, text: label });
+                        b.addEventListener("click", () => close(v));
+                        return b;
+                    }))));
+        box.addEventListener("click", (e) => { if (e.target === box) close(null); });
+        document.addEventListener("keydown", esc, true);
+        document.body.append(box);
+    });
 }
 
 // skor kecocokan: makin besar makin sesuai (0 = tidak cocok)
@@ -1206,6 +1228,16 @@ function afterDrop(vf, landId) {
     renderShortcuts();
 }
 
+// list diseret lalu dilepas di tombol folder: langsung pindah ke folder itu (di urutan akhir)
+function dropListsOnFolder(ids, fid) {
+    if (!findFolder(fid) || ids.every((id) => findList(id)?.folderId === fid)) return;
+    reorderLists(ids, null, fid);
+    setCurrent(currentId);   // kalau yang pindah list aktif, folder aktif ikut
+    renderFolders();
+    renderLists();
+    renderShortcuts();
+}
+
 // target jatuh di sebuah folder: sub folder terakhir dibuka, atau yang pertama, atau buat baru
 function folderLanding(fid) {
     const subs = getOrderedLists(fid).filter((l) => !l.isDefault);
@@ -1388,13 +1420,21 @@ importInput.addEventListener("change", async () => {
         const text = await file.text();
         const isHtml = /\.html?$/i.test(file.name) || /^\s*<(!doctype|html|dl)/i.test(text);
         let data = isHtml ? parseBookmarksHtml(text) : JSON.parse(text);
-        if (data?.app === "simpen.link" && data.lists) data = data.lists;   // file backup penuh: ambil bagian list-nya
-        const res = importLists(data);
-        if (!res) { alert(isHtml ? "Tidak ada bookmark di file ini." : "File tidak valid."); return; }
-        const total = Object.values(data).reduce((n, a) => n + a.length, 0) - res.skipped;
+        const full = Array.isArray(data?.lists);                                  // format baru (dengan folder)
+        if (!full && data?.app === "simpen.link" && data.lists) data = data.lists;   // backup lama
+        const groups = full ? data.lists.map((l) => l.items) : Object.values(data);
+        if (!groups.length || !groups.every(Array.isArray)) {
+            alert(isHtml ? "Tidak ada bookmark di file ini." : "File tidak valid.");
+            return;
+        }
+        const n = groups.reduce((s, a) => s + a.length, 0);
+        if (!confirm(`Import ${n} link dari ${groups.length} list?`)) return;   // Batal = tidak ada yang berubah
+        const res = full ? importFull(data) : importLists(data);
+        if (!res) { alert("File tidak valid."); return; }
+        renderFolders();
         renderLists();
         renderShortcuts();
-        alert(`${total} link dari ${res.count} list diimpor.` + (res.skipped ? ` ${res.skipped} dilewati (URL tidak valid).` : ""));
+        if (res.skipped) alert(`${res.skipped} dilewati (URL tidak valid).`);
     } catch {
         alert("File tidak valid.");
     }
@@ -1688,18 +1728,21 @@ setMode(0);
         listEl.classList.remove("grabbing");
         lockScroll(false);
         if (m.mode === "drag" && drag?.type === "list") {
-            const target = e.type === "mouseup" ? dropTarget(e) : null;   // batal = tidak ada drop
+            const up = e.type === "mouseup";
+            const fb = up ? document.elementFromPoint(e.clientX, e.clientY)?.closest("#folder-row button[data-id]") : null;
+            const target = up && !fb ? dropTarget(e) : null;   // batal = tidak ada drop
             const ids = drag.listIds, vf = viewFolderId;
             endDrag();
             suppressClick();
-            if (target) {
+            if (fb) dropListsOnFolder(ids, fb.dataset.id);
+            else if (target) {
                 reorderLists(ids, target.id, vf || currentFolderId);
                 afterDrop(vf, ids[0]);
             }
         } else if (m.mode) {
             suppressClick();
         }
-        later(150);                  // rapikan posisi ke tombol terdekat (ujung kanan ikut dihitung)
+        later(150);
     }
     document.addEventListener("mouseup", endMouse);
     window.addEventListener("blur", () => endMouse({ type: "cancel" }));
@@ -1867,6 +1910,8 @@ setMode(0);
         const card = over.closest(".shortcut-box");
 
         if (d.type === "list") {
+            const fb = over.closest(SEL_FOLDER);
+            if (fb) { dropListsOnFolder(d.listIds, fb.dataset.id); return; }
             const tg = listDropTarget(over);
             if (!tg || d.listIds.includes(tg.id)) return;
             reorderLists(d.listIds, tg.id, vf || currentFolderId);

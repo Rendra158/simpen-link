@@ -30,10 +30,12 @@ const SETTING_DEFS = [
   { key: "folderSort", section: "list_folder", group: "folder", label: "Urutan Folder", def: "custom",
     options: [["custom", "Custom (Drag & Drop)"], ["az", "Nama A–Z"], ["za", "Nama Z–A"], ["09", "0–9"], ["90", "9–0"]] },
   { key: "confirmDeleteFolder", section: "list_folder", group: "folder", label: "Konfirmasi Hapus Folder", def: "on", options: ON_OFF },
+  { key: "importFolderMode", section: "list_folder", group: "folder", label: "Import Folder Bernama Sama", def: "merge",
+    options: [["merge", "Gabung ke yang Ada"], ["new", "Buat Baru"], ["overwrite", "Timpa yang Ada"]] },
   { key: "listSort", section: "list_folder", group: "list", label: "Urutan List", def: "custom",
     options: [["custom", "Custom"], ["az", "Nama A–Z"], ["za", "Nama Z–A"], ["newest", "Terbaru"], ["oldest", "Terlama"]] },
   { key: "importMode", section: "list_folder", group: "list", label: "Import List Bernama Sama", def: "new",
-    options: [["new", "Buat Baru"], ["overwrite", "Timpa yang Ada"]] },
+    options: [["merge", "Gabung ke yang Ada"], ["new", "Buat Baru"], ["overwrite", "Timpa yang Ada"]] },
   { key: "confirmDelete", section: "list_folder", group: "list", label: "Konfirmasi Penghapusan", def: "on", options: ON_OFF },
   { key: "gridCols", section: "tampilan", label: "Kolom Grid", def: "3",
     options: [1, 2, 3, 4, 5].map((n) => [String(n), `${n} Kolom`]) },
@@ -159,6 +161,13 @@ const EN = {
   "List / Folder": "List / Folder",
   "Urutan Folder": "Folder Order",
   "Konfirmasi Hapus Folder": "Confirm Folder Deletion",
+  "Import Folder Bernama Sama": "Import Folders with Same Name",
+  "Gabung ke yang Ada": "Merge into Existing",
+  "Hapus Shortcut Duplikat": "Remove Duplicate Shortcuts",
+  "Hapus Duplikat": "Remove Duplicates",
+  "Tidak ada shortcut duplikat.": "No duplicate shortcuts.",
+  "Export sebagai:": "Export as:",
+  "Batal": "Cancel",
   // Akun
   "Otomatis": "Auto",
   "+ Tambah akun…": "+ Add account…",
@@ -226,6 +235,10 @@ const EN_RE = [
   [/^File: (.*) — perlu izin \(buka halaman utama, klik sekali, lalu izinkan\)$/, "File: $1 — permission needed (open the main page, click once, then allow)"],
   [/^Hapus akun (.*) dari daftar\?$/, "Remove account $1 from the list?"],
   [/^Hapus (\d+) folder beserta isinya\?$/, "Delete $1 folders and their contents? "],
+  [/^Hapus (\d+) shortcut duplikat di semua folder\?$/, "Remove $1 duplicate shortcuts across all folders?"],
+  [/^(\d+) shortcut duplikat dihapus\.$/, "$1 duplicate shortcuts removed."],
+  [/^Import (\d+) link dari (\d+) list\?$/, "Import $1 links from $2 lists?"],
+  [/^(\d+) dilewati \(URL tidak valid\)\.$/, "$1 skipped (invalid URL)."],
 ];
 
 const tr = (s) => {

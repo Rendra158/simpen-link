@@ -434,21 +434,101 @@ function uniqueName(base, fid = currentFolderId, exceptId = null) {
     for (let n = 1; nameTaken(name, exceptId, fid); n++) name = `${base} (${n})`;
     return name;
 }
+/* nama folder -> id, mengikuti Settings "Import Folder Bernama Sama" (gabung / buat baru / timpa) */
+function folderResolver() {
+    const done = new Map();
+    return (name) => {
+        if (typeof name !== "string" || !name.trim()) return currentFolderId;
+        name = name.trim();
+        if (done.has(name)) return done.get(name);
+        const old = folders.find((f) => f.name === name);
+        let f = old;
+        if (!old) f = addFolder(name);
+        else if (settings.importFolderMode === "new") f = addFolder(uniqueFolderName(name));
+        else if (settings.importFolderMode === "overwrite") lists = lists.filter((l) => l.isDefault || l.folderId !== old.id);
+        const id = f?.id || currentFolderId;
+        done.set(name, id);
+        return id;
+    };
+}
+
+// Taruh satu list hasil import sesuai Settings "Import List Bernama Sama":
+// merge = tambah ke list lama (URL yang sudah ada dilewati), new = list baru, overwrite = isi list lama diganti
+function putList(name, fid, items) {
+    name = name.trim();
+    const same = settings.importMode === "new" ? null
+        : lists.find((l) => l.name === name && (l.isDefault || l.folderId === fid));
+    if (!same) {
+        lists.push({ id: uid(), name: uniqueName(name, fid), isDefault: false, added: Date.now(), folderId: fid, items });
+    } else if (settings.importMode === "merge") {
+        const have = new Set(same.items.map((i) => normUrl(i.url)));
+        same.items.push(...items.filter((i) => !have.has(normUrl(i.url))));
+    } else {
+        same.items = items;
+    }
+}
+
 function importLists(obj) {
     if (!obj || typeof obj !== "object" || Array.isArray(obj)) return null;
     const entries = Object.entries(obj);
     if (!entries.length || !entries.every(([, arr]) => Array.isArray(arr))) return null;
+    const folderOf = folderResolver();
     let skipped = 0;
     entries.forEach(([name, arr]) => {
         const items = arr.map(cleanItem).filter(Boolean);
         skipped += arr.length - items.length;
-        const same = settings.importMode === "overwrite"
-            ? lists.find((l) => l.name === name.trim() && (l.isDefault || l.folderId === currentFolderId)) : null;
-        if (same) same.items = items;
-        else lists.push({ id: uid(), name: uniqueName(name), isDefault: false, added: Date.now(), folderId: currentFolderId, items });
+        const m = name.match(/^(.+?)\s\/\s(.+)$/);   // "Folder / List"
+        putList(m ? m[2] : name, m ? folderOf(m[1]) : currentFolderId, items);
     });
+    ensureCurrent();
     saveLists();
     return { count: entries.length, skipped };
+}
+
+function importFull(data) {
+    const rows = data?.lists;
+    if (!Array.isArray(rows) || !rows.length || !rows.every((r) => r && typeof r.name === "string" && Array.isArray(r.items))) return null;
+    const folderOf = folderResolver();
+    (Array.isArray(data.folders) ? data.folders : []).forEach(folderOf);
+    let skipped = 0;
+    rows.forEach((r) => {
+        const items = r.items.map(cleanItem).filter(Boolean);
+        skipped += r.items.length - items.length;
+        putList(r.name, folderOf(r.folder), items);
+    });
+    ensureCurrent();
+    saveLists();
+    return { count: rows.length, skipped };
+}
+
+function exportFull(ids, folderIds = []) {
+    const sel = lists.filter((l) => ids.includes(l.id));
+    const fids = new Set([...folderIds, ...sel.map((l) => l.folderId).filter(Boolean)]);
+    return {
+        app: "simpen.link",
+        version: 3,
+        folders: folders.filter((f) => fids.has(f.id)).map((f) => f.name),
+        lists: sel.map((l) => ({
+            name: l.name,
+            folder: findFolder(l.folderId)?.name ?? null,
+            items: l.items.map(({ name, url, note, added, pinned }) => ({ name, url, note, added, pinned })),
+        })),
+    };
+}
+
+// Format bookmark HTML (bisa diimpor ke Chrome/Firefox, dan ke aplikasi ini lagi)
+function exportHtml(ids) {
+    const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const byFolder = new Map();
+    lists.filter((l) => ids.includes(l.id)).forEach((l) => {
+        const k = findFolder(l.folderId)?.name || "";
+        (byFolder.get(k) || byFolder.set(k, []).get(k)).push(l);
+    });
+    const one = (l) => `<DT><H3>${esc(l.name)}</H3>\n<DL><p>\n` + l.items.map((i) =>
+        `<DT><A HREF="${esc(i.url)}" ADD_DATE="${Math.round((i.added || Date.now()) / 1000)}">${esc(i.name)}</A>`).join("\n") + `\n</DL><p>`;
+    const body = [...byFolder].map(([f, ls]) =>
+        f ? `<DT><H3>${esc(f)}</H3>\n<DL><p>\n${ls.map(one).join("\n")}\n</DL><p>` : ls.map(one).join("\n")).join("\n");
+    return `<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">\n<TITLE>Bookmarks</TITLE>\n<H1>Bookmarks</H1>\n<DL><p>\n${body}\n</DL><p>`;
 }
 
 ensureCurrent();
