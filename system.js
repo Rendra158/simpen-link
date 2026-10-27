@@ -115,7 +115,9 @@ function mountAccountPicker() {
 
 const NO_LOGO = "Image/no-logo.svg";
 let modeIndex = 0;
-let editing = null;
+let inlineEdit = null;   // { listId, itemId, t }: kartu yang sedang diedit langsung di tempatnya
+const EDIT_HOLD_MS = 700;         // tahan mouse selama ini = edit langsung di kartu
+const EDIT_HOLD_TOUCH_MS = 900;   // sentuh: 400 ms = pilih, tahan terus sampai ini = edit
 let drag = null;
 const coarse = window.matchMedia("(pointer: coarse)");   // layar sentuh (HP/tablet)
 
@@ -132,18 +134,13 @@ const modes = [
             const url = parseUrl(v);
             if (!url) { alert("URL tidak valid."); return false; }
             const fields = { name: nameInput.value.trim() || nameFromUrl(url), url, note: noteInput.value.trim() };
-            const listId = editing ? editing.listId : currentId;
-            if (settings.allowDuplicate === "off" && hasDuplicate(listId, url, editing?.itemId)) {
+            const listId = currentId;
+            if (settings.allowDuplicate === "off" && hasDuplicate(listId, url)) {
                 alert("Shortcut dengan URL ini sudah ada di list.");
                 return false;
             }
-            if (editing) {
-                editShortcut(listId, editing.itemId, fields);
-                setMode(0);
-            } else {
-                addShortcut(listId, fields);
-                renderShortcuts();
-            }
+            addShortcut(listId, fields);
+            renderShortcuts();
             return true;
         },
     },
@@ -159,7 +156,7 @@ const matchedLists = (q) => getOrderedLists().filter((l) => l.name.toLowerCase()
 
 function setMode(n) {
     modeIndex = n;
-    editing = null;
+    inlineEdit = null;
     clearSelection();
     const m = mode();
     icon.src = m.icon;
@@ -169,22 +166,6 @@ function setMode(n) {
     renderLists();
     renderShortcuts();
     refreshUI();
-}
-
-function enterEditMode(item, listId) {
-    editing = { listId, itemId: item.id };
-    modeIndex = 0;
-    clearSelection();
-    renderShortcuts();   // buang sisa hasil pencarian
-    icon.src = "Image/edit.svg";
-    textbox.placeholder = "Edit Shortcut...";
-    textbox.readOnly = false;
-    wrapper.className = "textbox-wrapper mode-edit";
-    textbox.value = item.url;
-    nameInput.value = item.name;
-    noteInput.value = item.note;
-    refreshUI();
-    textbox.focus();
 }
 
 function flashMode() {
@@ -212,7 +193,6 @@ function submitOrNextMode() {
         return;
     }
     if (!v) {                      // kosong: Enter / klik ikon = ganti mode
-        if (editing) return;       // sedang edit: batalkan lewat Esc atau tombol X
         setMode((modeIndex + 1) % modes.length);
         flashMode();
         return;
@@ -230,27 +210,28 @@ textbox.addEventListener("keydown", (e) => {
         e.preventDefault();
         submitOrNextMode();
     } else if (e.key === "Escape") {
-        if (editing) {
-            textbox.value = "";
-            setMode(0);
-            flashMode();
-        } else if (selectedShortcuts.size > 0 || selectedLists.size > 0 || selectedFolders.size > 0) {
+        if (selectedShortcuts.size > 0 || selectedLists.size > 0 || selectedFolders.size > 0) {
             clearSelection();
         }
-    } else if (empty && !editing && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+    } else if (empty && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
         e.preventDefault();
         setMode((modeIndex + (e.key === "ArrowRight" ? 1 : -1) + modes.length) % modes.length);
         flashMode();
     }
 });
 
+[nameInput, noteInput].forEach((el) => el.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.isComposing || e.shiftKey) return;
+    e.preventDefault();
+    if (textbox.value.trim()) submitOrNextMode();
+}));
+
 textbox.addEventListener("input", refreshUI);
 modeIconBox.addEventListener("mousedown", (e) => e.preventDefault());
 modeIconBox.addEventListener("click", () => { textbox.focus(); submitOrNextMode(); });
 cancelBtn.addEventListener("click", () => {
     textbox.value = "";
-    if (editing) { setMode(0); flashMode(); }   // di HP tidak ada Escape: X = batal edit
-    else refreshUI();
+    refreshUI();
     textbox.focus();
 });
 copyBtn.addEventListener("click", async () => {
@@ -278,15 +259,15 @@ function updateSelectionUI() {
     showBar(barSelect, hasAny);
     bulkCount.textContent = `${selectedShortcuts.size + selectedLists.size + selectedFolders.size} selects`;
 
-    const hasDeletable = hasShortcuts || hasFolders || [...selectedLists].some((id) => !findList(id)?.isDefault);
+    const hasDeletable = hasShortcuts || [...selectedFolders].some((id) => !findFolder(id)?.isHome) || [...selectedLists].some((id) => !findList(id)?.isDefault);
     showBar(bulkDeleteBtn, hasDeletable);
     showBar(bulkExportBtn, hasLists || hasFolders);
 
-    const oneShortcut = selectedShortcuts.size === 1 && !hasLists && !hasFolders;
+    // shortcut tidak punya tombol edit lagi: tahan kartunya. Tombol ini hanya untuk ganti nama list / folder.
     const oneList = selectedLists.size === 1 && !hasShortcuts && mode().editable
         && !findList([...selectedLists][0])?.isDefault;
-    const oneFolder = selectedFolders.size === 1 && mode().editable;
-    showBar(bulkEditBtn, oneShortcut || oneList || oneFolder);
+    const oneFolder = selectedFolders.size === 1 && mode().editable && !findFolder([...selectedFolders][0])?.isHome;
+    showBar(bulkEditBtn, oneList || oneFolder);
 
     // Pin: tampil kalau ada shortcut terpilih. Semua sudah pin = tombol "lepas pin".
     showBar(bulkPinBtn, hasShortcuts && !hasLists);
@@ -334,10 +315,8 @@ function toggleFolderSelection(id) {
 
 bulkDeleteBtn.addEventListener("click", () => {
     if (selectedFolders.size > 0) {
-        const ids = [...selectedFolders];
-        if (ids.length >= folders.length) { alert("Minimal harus ada satu folder."); return; }
-        
-        // TAMBAHAN: Cek pengaturan konfirmasi hapus folder
+        const ids = [...selectedFolders].filter((id) => !findFolder(id)?.isHome);   // Home tidak bisa dihapus
+        if (!ids.length) { selectedFolders.clear(); updateSelectionUI(); return; }
         if (settings.confirmDeleteFolder === "on" && !confirm(`Hapus ${ids.length} folder beserta isinya?`)) return;
         
         ids.forEach((id) => deleteFolder(id));
@@ -359,6 +338,7 @@ bulkDeleteBtn.addEventListener("click", () => {
         if (settings.confirmDelete === "on" && !confirm(`Hapus ${listIds.length} list?`)) return;
         listIds.forEach(deleteList);
         selectedLists.clear();
+        renderFolders();
         renderLists();
         renderShortcuts();
     }
@@ -408,10 +388,7 @@ bulkExportBtn.addEventListener("click", async () => {
 });
 
 bulkEditBtn.addEventListener("click", () => {
-    if (selectedShortcuts.size === 1) {
-        const item = findItem(currentId, [...selectedShortcuts][0]);
-        if (item) enterEditMode(item, currentId);   // otomatis clearSelection()
-    } else if (selectedLists.size === 1) {
+    if (selectedLists.size === 1) {
         const id = [...selectedLists][0];
         const list = findList(id);
         const btn = listEl.querySelector(`button[data-id="${id}"]`);
@@ -432,15 +409,23 @@ bulkCancelBtn.addEventListener("click", () => {
     clearSelection();
 });
 
+/* baris list di atas textbox disembunyikan saat mengetik link, dan untuk folder "list tersendiri" */
+function syncListVisibility() {
+    const solo = mode().id !== "search" && !!findFolder(viewFolderId || currentFolderId)?.solo;
+    listEl.classList.toggle("List-hidden", solo || (mode().id === "link" && textbox.value.trim() !== ""));
+}
+
 /* ---------- tampilan yang bergantung pada isi textbox ---------- */
 function refreshUI() {
     const hasValue = textbox.value.trim() !== "";
     const isLink = mode().id === "link";
     const isSearch = mode().id === "search";
-    listEl.classList.toggle("List-hidden", !!editing || (isLink && hasValue));
-    const showFields = isLink && (hasValue || !!editing);
+    syncListVisibility();
+    const showFields = isLink && hasValue;
     nameField.classList.toggle("visible", showFields);
     noteField.classList.toggle("visible", showFields);
+    nameField.inert = !showFields;   // tersembunyi (opacity 0) tapi dulu masih bisa fokus & menerima paste
+    noteField.inert = !showFields;
     if (!showFields) { nameInput.value = ""; noteInput.value = ""; }
     if (isSearch) renderShortcuts();
 }
@@ -512,6 +497,13 @@ function renderLists() {
         return;
     }
 
+    if (findFolder(viewFolderId || currentFolderId)?.solo) {   // list tersendiri: tidak ada baris list
+        listEl.replaceChildren();
+        syncListVisibility();
+        updateSelectionUI();
+        return;
+    }
+
     listEl.replaceChildren(
         ...getOrderedLists(viewFolderId || currentFolderId).map((list) => {
             const btn = h("button", {
@@ -545,6 +537,7 @@ function renderLists() {
         })
     );
 
+    syncListVisibility();
     updateActive();
     updateSelectionUI();
 }
@@ -559,7 +552,7 @@ function renderFolders() {
     folderEl.replaceChildren(
         ...getOrderedFolders().map((f) => h("button", {
             type: "button",
-            class: f.id === cur ? (turun ? "aktif turun" : "aktif") : "",
+            class: [f.isHome ? "home" : "", f.solo ? "solo" : "", f.id === cur ? (turun ? "aktif turun" : "aktif") : ""].filter(Boolean).join(" "),
             "data-id": f.id,
             text: f.name
         })),
@@ -618,6 +611,137 @@ function makeCard(item, listId, listName = null, opens = null) {
     return card;
 }
 
+/* ---------- edit langsung di kartu ----------
+   Tahan kartu (mouse 0,7 dtk / sentuh 0,9 dtk) atau klik kanan 2x: kartu berubah jadi form Name, Link, Note.
+   Link & Note selalu tampil saat diedit (walau disembunyikan di Settings / note tertutup); logo mengikuti Settings.
+   Simpan: tombol pensil di bawah Note, atau Enter. Batal: Esc atau tombol X. */
+function makeEditCard(item, listId) {
+    const name = h("input", { class: "edit-name", type: "text", placeholder: "Name...", "aria-label": "Nama", value: item.name });
+    const url = h("input", { class: "edit-url", type: "text", placeholder: "Link...", "aria-label": "Link", value: item.url,
+        inputmode: "url", autocapitalize: "off", autocorrect: "off", spellcheck: "false" });
+    const note = h("textarea", { class: "edit-note", placeholder: "Note...", "aria-label": "Catatan", rows: "2", text: item.note });
+    const save = h("button", { class: "edit-save", type: "button", "aria-label": "Simpan" }, h("img", { src: "Image/edit.svg", alt: "" }));
+    const cancel = h("button", { class: "edit-cancel", type: "button", "aria-label": "Batal" }, h("img", { src: "Image/cancel.svg", alt: "" }));
+    const logo = settings.showLogo === "on" ? [h("div", { class: "shortcut-logo-wrap" }, faviconImg(item.url, "shortcut-logo"))] : [];
+
+    const card = h("div", { class: `shortcut-box ui-3d editing${item.pinned ? " pinned" : ""}`, "data-id": item.id, "data-list": listId },
+        h("div", { class: "edit-top" }, ...logo, name),
+        url, note,
+        h("div", { class: "edit-actions" }, save, cancel));
+    card.draggable = false;
+
+    save.addEventListener("click", () => saveInlineEdit(card));
+    cancel.addEventListener("click", cancelInlineEdit);
+    note.addEventListener("input", () => fitEditCard(card));
+    card.addEventListener("keydown", (e) => {
+        if (e.isComposing) return;
+        if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancelInlineEdit(); }
+        else if (e.key === "Enter" && !e.shiftKey && e.target.matches("input, textarea")) { e.preventDefault(); saveInlineEdit(card); }
+    });
+    return card;
+}
+
+function inlineDirty() {
+    const card = gridEl.querySelector(".shortcut-box.editing");
+    const item = inlineEdit && findItem(inlineEdit.listId, inlineEdit.itemId);
+    if (!card || !item) return false;
+    return card.querySelector(".edit-name").value !== item.name
+        || card.querySelector(".edit-url").value !== item.url
+        || card.querySelector(".edit-note").value !== item.note;
+}
+
+function startInlineEdit(item, listId) {
+    if (!item || !mode().editable) return;
+    if (inlineEdit && inlineDirty()) return;   // jangan buang ketikan yang belum disimpan
+    clearSelection();
+    inlineEdit = { listId, itemId: item.id, t: Date.now() };
+    renderShortcuts();
+    const card = gridEl.querySelector(".shortcut-box.editing");
+    if (!card) return;
+    card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    card.querySelector(".edit-name").focus({ preventScroll: true });
+}
+
+function cancelInlineEdit() {
+    if (!inlineEdit) return;
+    inlineEdit = null;
+    renderShortcuts();
+}
+
+function saveInlineEdit(card) {
+    if (!inlineEdit) return;
+    const { listId, itemId } = inlineEdit;
+    if (!findItem(listId, itemId)) { cancelInlineEdit(); return; }
+    const urlInput = card.querySelector(".edit-url");
+    const url = parseUrl(urlInput.value);
+    if (!url) { alert("URL tidak valid."); urlInput.focus(); return; }
+    if (settings.allowDuplicate === "off" && hasDuplicate(listId, url, itemId)) {
+        alert("Shortcut dengan URL ini sudah ada di list.");
+        urlInput.focus();
+        return;
+    }
+    editShortcut(listId, itemId, {
+        name: card.querySelector(".edit-name").value.trim() || nameFromUrl(url),
+        url,
+        note: card.querySelector(".edit-note").value.trim(),
+    });
+    inlineEdit = null;
+    renderShortcuts();
+}
+
+// tinggi kartu edit menyesuaikan isi: note melebar sesuai teks, kartu mengambil beberapa baris grid
+function fitEditCard(card) {
+    const note = card.querySelector(".edit-note");
+    if (note) { note.style.height = "auto"; note.style.height = note.scrollHeight + "px"; }
+    card.style.gridRow = "";
+    const cs = getComputedStyle(card.parentElement);
+    const rowH = parseFloat(cs.gridAutoRows);              // "auto" -> NaN: baris sudah mengikuti isi
+    if (!rowH || settings.cardHeight === "even") return;
+    const gap = parseFloat(cs.rowGap) || 0;
+    card.style.alignSelf = "start";
+    const need = card.offsetHeight;                        // tinggi isi sebenarnya
+    card.style.alignSelf = "";
+    card.style.gridRow = `span ${Math.max(1, Math.ceil((need + gap) / (rowH + gap)))}`;
+}
+function fitEditing() {
+    const c = gridEl.querySelector(".shortcut-box.editing");
+    if (c) fitEditCard(c);
+}
+window.addEventListener("resize", fitEditing);
+document.fonts?.ready.then(fitEditing);
+
+// klik di luar kartu yang sedang diedit: tutup kalau belum ada perubahan (kalau sudah ada, tetap terbuka)
+document.addEventListener("click", (e) => {
+    if (!inlineEdit || Date.now() - inlineEdit.t < 600) return;
+    if (e.target.closest(".shortcut-box.editing")) return;
+    if (e.target.closest("a.stretch")) { e.preventDefault(); e.stopPropagation(); }   // jangan sekalian membuka link
+    if (!inlineDirty()) cancelInlineEdit();
+}, true);
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && inlineEdit && !e.defaultPrevented) cancelInlineEdit();
+});
+
+// tahan tombol mouse di kartu tanpa menggeser = edit
+(() => {
+    let timer = null, pt = null;
+    const stop = () => { clearTimeout(timer); timer = null; };
+    gridEl.addEventListener("mousedown", (e) => {
+        stop();
+        if (e.button !== 0 || e.sourceCapabilities?.firesTouchEvents || !mode().editable) return;
+        const card = cardOf(e);
+        if (!card || card.classList.contains("editing") || e.target.closest("button, input, textarea")) return;
+        pt = { x: e.clientX, y: e.clientY };
+        timer = setTimeout(() => {
+            timer = null;
+            startInlineEdit(findItem(card.dataset.list, card.dataset.id), card.dataset.list);
+        }, EDIT_HOLD_MS);
+    });
+    document.addEventListener("mousemove", (e) => { if (timer && Math.hypot(e.clientX - pt.x, e.clientY - pt.y) > 5) stop(); });
+    document.addEventListener("mouseup", stop);
+    gridEl.addEventListener("dragstart", stop);
+    window.addEventListener("blur", stop);
+})();
+
 // Dialog pilihan. choices = [[nilai, label, kelas tombol]]. Klik luar / Esc = null (batal).
 function askChoice(title, choices) {
     return new Promise((done) => {
@@ -650,8 +774,8 @@ function matchScore({ name, url, note }, q, by) {
 
 function renderSearch() {
     const listLabel = (l) => {
-        const f = findFolder(l.folderId)?.name;
-        return l.isDefault || !f ? l.name : `${f}/${l.name}`;
+        const fo = findFolder(l.folderId);
+        return l.isDefault || !fo ? l.name : fo.solo ? fo.name : `${fo.name}/${l.name}`;
     };
     const q = textbox.value.trim().toLowerCase();
     if (!q) { gridEl.replaceChildren(); return; }   // belum mengetik: kosong
@@ -782,14 +906,16 @@ document.fonts?.ready.then(equalizeLater);
 
 function renderShortcuts() {
     updateCount();
-    if (mode().id === "search") { renderSearch(); updateSelectionUI(); renderIndex(); return; }
+    if (mode().id === "search") { inlineEdit = null; renderSearch(); updateSelectionUI(); renderIndex(); return; }
+    if (inlineEdit && (inlineEdit.listId !== currentId || !findItem(inlineEdit.listId, inlineEdit.itemId))) inlineEdit = null;
     const list = findList(currentId);
     const rows = sortItems(list.items.map((item) => ({ item })));
     const cards = rows.length
-        ? rows.map(({ item }) => makeCard(item, currentId))
+        ? rows.map(({ item }) => (inlineEdit && inlineEdit.itemId === item.id ? makeEditCard(item, currentId) : makeCard(item, currentId)))
         : [h("div", { class: "shortcuts-empty", text: "Belum ada shortcut." })];
     gridEl.replaceChildren(...(list.isDefault ? homeView(cards) : cards));
     updateSelectionUI();
+    fitEditing();
     fitAllNotes();
     equalizeLater();
     renderIndex();
@@ -905,7 +1031,8 @@ listEl.addEventListener("click", (e) => {
 const folderBtn = (e) => e.target.closest?.("button[data-id]");
 
 function goFolder(fid) {
-    if (fid === currentFolderId && !viewFolderId) return;   // BARU: folder sama = jangan render ulang
+    inlineEdit = null;
+    if (fid === currentFolderId && !viewFolderId) return;   // folder sama = jangan render ulang
     if (fid !== currentFolderId) { selectedShortcuts.clear(); selectedLists.clear(); }   // GANTI baris lama
     openFolder(fid);
     renderFolders();
@@ -921,7 +1048,22 @@ function addFolderInline() {
     if (btn) startRenameFolder(btn, f);
 }
 
+// Klik + 1x = folder baru, klik + 2x (cepat) = "list tersendiri": tombol di baris folder tanpa baris list
+let addTimer = null;
+function onAddFolderClick() {
+    if (addTimer) { clearTimeout(addTimer); addTimer = null; addSoloInline(); return; }
+    addTimer = setTimeout(() => { addTimer = null; addFolderInline(); }, 280);
+}
+function addSoloInline() {
+    const f = addSoloFolder(uniqueFolderName("New List"));
+    if (!f) return;
+    goFolder(f.id);
+    const btn = folderEl.querySelector(`button[data-id="${f.id}"]`);
+    if (btn) startRenameFolder(btn, f);
+}
+
 function startRenameFolder(btn, folder) {
+    if (folder.isHome) return;   // Home tidak bisa diganti namanya
     const input = h("input", { class: "rename-input" });
     input.value = folder.name;
     btn.textContent = "";
@@ -946,7 +1088,7 @@ function startRenameFolder(btn, folder) {
 }
 
 folderEl.addEventListener("click", (e) => {
-    if (e.target.closest(".add-btn")) { if (mode().editable) addFolderInline(); return; }
+    if (e.target.closest(".add-btn")) { if (mode().editable) onAddFolderClick(); return; }
     const btn = folderBtn(e);
     if (!btn || e.target.closest(".rename-input")) return;
     if (coarse.matches && selectedFolders.size > 0) { toggleFolderSelection(btn.dataset.id); return; }
@@ -1022,7 +1164,7 @@ folderEl.addEventListener("dragend", () => {
         const btn = e.target.closest("button[data-id]");
         md = {
             x: e.clientX, y: e.clientY, left: folderEl.scrollLeft, armed: false, mode: null, btn,
-            canDnD: !!btn && settings.folderSort === "custom" && mode().editable,
+            canDnD: !!btn && settings.folderSort === "custom" && mode().editable && !findFolder(btn.dataset.id)?.isHome,
         };
         clearTimeout(timer);
         timer = setTimeout(() => { if (md && !md.mode) md.armed = true; }, HOLD_MS);
@@ -1094,7 +1236,7 @@ folderEl.addEventListener("drop", (e) => {
     const d = drag;
     endDrag();
     if (!btn || d?.type !== "item" || !mode().editable) return;
-    dropItemsOnList(d, folderLanding(btn.dataset.id));
+    dropItemsOnFolder(d, btn.dataset.id);
 });
 folderEl.addEventListener("dragleave", (e) => {
     if (!folderEl.contains(e.relatedTarget)) { hoverFolder(null); stopAutoScroll(); }
@@ -1117,6 +1259,7 @@ function fitNote(card) {
 
 let openTimer = null;
 gridEl.addEventListener("click", (e) => {
+    if (e.target.closest(".shortcut-box.editing")) return;   // sedang mengetik di kartu: jangan pilih / buka link
     const ra = e.target.closest(".reco a.stretch");   // klik kartu di panel kanan Home: catat saja, link terbuka biasa
     if (ra) {
         const c = ra.closest(".shortcut-box");
@@ -1163,6 +1306,7 @@ gridEl.addEventListener("click", (e) => {
 });
 
 gridEl.addEventListener("contextmenu", (e) => {
+    if (e.target.closest(".shortcut-box.editing")) return;   // menu salin/tempel bawaan browser untuk kolom edit
     // panel kanan Home: klik kanan = buka list asalnya + pilih shortcut-nya
     const side = e.target.closest?.(".shortcut-box.reco");
     if (side) {
@@ -1174,13 +1318,13 @@ gridEl.addEventListener("contextmenu", (e) => {
     const card = cardOf(e);
     if (!card || !mode().editable) return;   // mode search: tanpa seleksi/edit
     e.preventDefault();
-    if (editing) return;                     // sedang edit: klik kanan tidak mengubah seleksi
+    if (inlineEdit) return;                  // sedang edit: klik kanan tidak mengubah seleksi
 
     const now = Date.now();
     const itemId = card.dataset.id;
 
     if (lastRightClick.id === itemId && lastRightClick.type === "shortcut" && now - lastRightClick.time < 400) {
-        enterEditMode(findItem(currentId, itemId), currentId);
+        startInlineEdit(findItem(currentId, itemId), currentId);
         lastRightClick.id = null;
     } else {
         toggleShortcutSelection(itemId);
@@ -1228,21 +1372,37 @@ function afterDrop(vf, landId) {
     renderShortcuts();
 }
 
-// list diseret lalu dilepas di tombol folder: langsung pindah ke folder itu (di urutan akhir)
+// list diseret lalu dilepas di tombol folder: dipindah ke folder itu (urutan akhir) dan langsung pindah ke folder tersebut
 function dropListsOnFolder(ids, fid) {
-    if (!findFolder(fid) || ids.every((id) => findList(id)?.folderId === fid)) return;
-    reorderLists(ids, null, fid);
-    setCurrent(currentId);   // kalau yang pindah list aktif, folder aktif ikut
+    const f = findFolder(fid);
+    if (!f || f.solo) return;   // list tersendiri tidak menampung list lain
+    selectedLists.clear();
+    selectedShortcuts.clear();
+    if (!ids.every((id) => findList(id)?.folderId === fid) && !reorderLists(ids, null, fid)) return;
+    setCurrent(ids.find((id) => findList(id)?.folderId === fid) || ids[0]);
     renderFolders();
     renderLists();
     renderShortcuts();
 }
 
-// target jatuh di sebuah folder: sub folder terakhir dibuka, atau yang pertama, atau buat baru
+// target jatuh di sebuah folder: list terakhir dibuka di folder itu, atau yang pertama, atau buat baru
 function folderLanding(fid) {
-    const subs = getOrderedLists(fid).filter((l) => !l.isDefault);
-    const last = subs.find((l) => l.id === lastLists[fid]);
-    return (last || subs[0] || addList(uniqueName("New List", fid), fid))?.id || null;
+    if (!findFolder(fid)) return null;
+    const ls = getOrderedLists(fid);
+    const last = ls.find((l) => l.id === lastLists[fid]);
+    return (last || ls[0] || addList(uniqueName("New List", fid), fid))?.id || null;
+}
+// shortcut diseret lalu dilepas di tombol folder: dipindah ke list di folder itu dan langsung pindah ke sana
+function dropItemsOnFolder(d, fid) {
+    const landing = folderLanding(fid);
+    if (!landing) return;
+    dropItemsOnList(d, landing);
+    selectedShortcuts.clear();
+    selectedLists.clear();
+    setCurrent(landing);
+    renderFolders();
+    renderLists();
+    renderShortcuts();
 }
 // pindahkan shortcut yang diseret ke list tujuan, lalu tetap di list asal
 function dropItemsOnList(d, toId) {
@@ -1455,6 +1615,7 @@ moreCountBtn.addEventListener("click", () => {
 
 /* ---------- sinkron dengan tab lain / halaman Settings ---------- */
 function syncFromStorage() {
+    inlineEdit = null;
     reloadState();
     applyGridPrefs();
     mountAccountPicker();
@@ -1773,7 +1934,7 @@ setMode(0);
    Geser sebelum 400 ms = scroll / swipe biasa. */
 (() => {
     const HOLD = 400, MOVE = 10;
-    let timer = null, startPt = null, pending = null;
+    let timer = null, editTimer = null, startPt = null, pending = null;
     let held = false, moved = false, touching = false, suppressUntil = 0;
 
     const SEL_FOLDER = "#folder-row button[data-id]";
@@ -1787,7 +1948,7 @@ setMode(0);
 
     function canDrag(kind, id) {
     if (!mode().editable) return false;
-    if (kind === "folder") return settings.folderSort === "custom"; 
+    if (kind === "folder") return settings.folderSort === "custom" && !findFolder(id)?.isHome;
     if (kind === "pin") return settings.pinSort === "custom";
     if (kind === "list") { const list = findList(id); return !!list && !list.isDefault; }
     return true;
@@ -1798,6 +1959,19 @@ setMode(0);
         else if (kind === "list") toggleListSelection(id);
         else toggleShortcutSelection(id);
         navigator.vibrate?.(30);
+    }
+
+    // tahan terus tanpa menggeser: batalkan drag/pilih, kartu berubah jadi form edit
+    function onEditHold() {
+        editTimer = null;
+        if (!held || moved || !pending || pending.kind !== "item") return;
+        const id = pending.el.dataset.id, list = pending.el.dataset.list || currentId;
+        endDrag();
+        // kartu akan dibuat ulang (jari masih menempel di kartu lama): selesaikan gestur di sini
+        held = false; pending = null; touching = false;
+        suppressUntil = Date.now() + 600;
+        navigator.vibrate?.([20, 40, 20]);
+        startInlineEdit(findItem(list, id), list);
     }
 
     function onHold() {
@@ -1830,10 +2004,11 @@ setMode(0);
         held = false;
         moved = false;
         const el = e.target.closest?.(`${SEL_LIST}, ${SEL_FOLDER}, .shortcut-box:not(.reco), .pin-card`);
-        if (e.touches.length !== 1 || !el || !mode().editable || e.target.closest(".note-toggle, .rename-input, .list-tag")) return;
+        if (e.touches.length !== 1 || !el || !mode().editable || e.target.closest(".note-toggle, .rename-input, .list-tag, .shortcut-box.editing")) return;
         startPt = { x: e.touches[0].clientX, y: e.touches[0].clientY };
         pending = { kind: el.matches(".pin-card") ? "pin" : el.matches(".shortcut-box") ? "item" : el.matches(SEL_FOLDER) ? "folder" : "list", el };
         timer = setTimeout(onHold, HOLD);
+        if (pending.kind === "item") editTimer = setTimeout(onEditHold, EDIT_HOLD_TOUCH_MS);   // tahan terus = edit
     }, { passive: true });
 
     document.addEventListener("touchmove", (e) => {
@@ -1841,13 +2016,14 @@ setMode(0);
         if (!held) {
             if (timer && Math.hypot(t.clientX - startPt.x, t.clientY - startPt.y) > MOVE) {
                 clearTimeout(timer);
+                clearTimeout(editTimer);
                 timer = null;
                 pending = null;
             }
             return;
         }
         if (!drag) return;
-        if (!moved && Math.hypot(t.clientX - startPt.x, t.clientY - startPt.y) > MOVE) moved = true;
+        if (!moved && Math.hypot(t.clientX - startPt.x, t.clientY - startPt.y) > MOVE) { moved = true; clearTimeout(editTimer); }
         if (e.cancelable) e.preventDefault();
         document.querySelectorAll(".dragover, .drop-target").forEach((n) => n.classList.remove("dragover", "drop-target"));
         const over = at(t);
@@ -1875,6 +2051,7 @@ setMode(0);
 
     function finish(e, drop) {
         clearTimeout(timer);
+        clearTimeout(editTimer);
         timer = null;
         touching = false;
         const wasHeld = held, d = drag, p = pending, wasMoved = moved;
@@ -1927,7 +2104,7 @@ setMode(0);
             if (dup) alert(`${dup} shortcut dilewati karena URL sama sudah ada di list tujuan.`);
             afterDrop(vf, btn.dataset.id);
         } else if (over.closest(SEL_FOLDER) && d.type === "item") {   // BARU: jatuh langsung di folder
-            dropItemsOnList(d, folderLanding(over.closest(SEL_FOLDER).dataset.id));
+            dropItemsOnFolder(d, over.closest(SEL_FOLDER).dataset.id);
         } else if (card && canDropOn(card, d) && !d.itemIds.includes(card.dataset.id)) {
             reorderShortcuts(d.listId, d.itemIds, card.dataset.id);
             renderShortcuts();
@@ -1947,7 +2124,7 @@ setMode(0);
 
 /* ---------- ketik / Enter / paste di mana saja langsung ke textbox ---------- */
 (() => {
-    const typing = (el) => !!el && (el.matches?.("input, textarea, select, [contenteditable]") || el.isContentEditable);
+    const typing = (el) => !!el && !el.closest?.("[inert]") && (el.matches?.("input, textarea, select, [contenteditable]") || el.isContentEditable);
     const touring = () => typeof tour !== "undefined" && tour;   // sedang spotlight
 
     document.addEventListener("keydown", (e) => {
@@ -1967,9 +2144,28 @@ setMode(0);
 
     document.addEventListener("paste", (e) => {
         if (typing(document.activeElement) || touring()) return;
-        const t = (e.clipboardData?.getData("text") || "").replace(/[\r\n]+/g, " ");
-        if (!t.trim()) return;
+        const raw = (e.clipboardData?.getData("text") || "").trim();
+        if (!raw) return;
         e.preventDefault();
+        // Tepat satu shortcut sedang dipilih: paste = buka edit kartu itu, Note terisi dari paste
+        if (mode().editable && selectedShortcuts.size === 1 && !selectedLists.size && !selectedFolders.size) {
+            const id = [...selectedShortcuts][0], listId = currentId;
+            const item = findItem(listId, id);
+            if (item) {
+                startInlineEdit(item, listId);
+                const card = gridEl.querySelector(".shortcut-box.editing");
+                const note = card?.querySelector(".edit-note");
+                if (note && inlineEdit?.itemId === id) {   // gagal terbuka (ada edit lain belum disimpan): jatuh ke textbox
+                    const old = item.note.trim();
+                    note.value = old ? `${old}\n${raw}` : raw;   // note lama dipertahankan, paste ditambah di baris baru
+                    fitEditCard(card);
+                    note.focus({ preventScroll: true });
+                    note.setSelectionRange(note.value.length, note.value.length);
+                    return;
+                }
+            }
+        }
+        const t = raw.replace(/[\r\n]+/g, " ");
         textbox.focus();
         textbox.setRangeText(t, textbox.selectionStart, textbox.selectionEnd, "end");
         refreshUI();

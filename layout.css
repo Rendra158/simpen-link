@@ -211,6 +211,13 @@ html, body { height: 100%; margin: 0; }
   .home-reco { --cols: 1; }
 
   .shortcut-box { padding: calc(var(--shortcut-h) * 0.16); }
+
+  /* kartu yang sedang diedit: selebar satu baris grid, kolom 16px supaya iPhone tidak zoom saat mengetik */
+  .shortcut-box.editing { grid-column: 1 / -1; padding: 12px; }
+  .shortcut-box.editing input,
+  .shortcut-box.editing textarea { font-size: 16px; }
+  .edit-save { height: 38px; }
+  .edit-cancel { width: 38px; height: 38px; }
   .shortcut-top { gap: 8px; height: auto; }
   .shortcut-logo {
     width: clamp(20px, calc(var(--card-w) * 0.17), 34px);

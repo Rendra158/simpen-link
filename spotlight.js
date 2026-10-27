@@ -30,8 +30,8 @@ const TOUR_STEPS = [
         target: ".mode-icon-box",
         title: { id: "Ganti Mode", en: "Switch Mode" },
         text: {
-            id: "Klik ikon ini untuk mengganti mode. Jika textbox berisi teks, perintah dijalankan. Jika kosong, mode berpindah (bisa juga dengan tombol ← →):\n• Add Link: simpan website baru.\n• Search: cari shortcut dari semua list.",
-            en: "Click this icon to switch modes. If the textbox has text, the command runs. If empty, the mode switches (you can also use ← → keys):\n• Add Link: save a new website.\n• Search: find shortcuts across all lists." 
+            id: "Klik ikon ini untuk mengganti mode. Jika textbox berisi teks, perintah dijalankan. Jika kosong, mode berpindah (bisa juga dengan tombol ← →):\n• Add Link: simpan website baru. Kolom Name & Note di atas textbox bisa diisi (opsional).\n• Search: cari shortcut dari semua list.",
+            en: "Click this icon to switch modes. If the textbox has text, the command runs. If empty, the mode switches (you can also use ← → keys):\n• Add Link: save a new website. The Name & Note fields above the textbox are optional.\n• Search: find shortcuts across all lists." 
         } 
     },
     { 
@@ -75,7 +75,7 @@ const TOUR_STEPS = [
         } 
     },
     { 
-        target: "#bar-select",
+        target: ".bar-top",
         title: { id: "Saat Ada yang Dipilih", en: "When Something Is Selected" },
         text: {
             id: "Begitu kamu memilih kartu, List, atau Folder, bar di atas berganti menjadi tombol aksi:\n• Delete: hapus yang dipilih.\n• Edit: ubah isi shortcut, atau ganti nama List/Folder.\n• Pin: sematkan shortcut agar tampil paling atas.\n• Export: simpan List/Folder sebagai file cadangan.\n• X: batal memilih.",
@@ -94,8 +94,8 @@ const TOUR_STEPS = [
         target: "#more-settings",
         title: { id: "Pengaturan (Settings)", en: "Settings" },
         text: {
-            id: "Klik di sini untuk membuka halaman Settings.\nKamu bisa mengatur urutan Folder/List, tema gelap/terang, bahasa, hingga fitur backup otomatis ke file di perangkatmu.",
-            en: "Click here to open the Settings page.\nYou can configure Folder/List order, dark/light theme, language, and even automatic backup to a file on your device." 
+            id: "Klik di sini untuk membuka halaman Settings.\n• Atur urutan Folder/List, tema gelap/terang, dan bahasa.\n• Advanced: backup otomatis ke file di perangkatmu, pulihkan dari backup, hapus shortcut duplikat, atau hapus semua data.",
+            en: "Click here to open the Settings page.\n• Configure Folder/List order, dark/light theme, and language.\n• Advanced: automatic backup to a file on your device, restore from backup, remove duplicate shortcuts, or delete all data."
         } 
     },
     { 

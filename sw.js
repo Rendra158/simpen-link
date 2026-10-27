@@ -1,4 +1,4 @@
-const CACHE = "simpenlink-v5";   // naikkan angkanya tiap kali daftar ASSETS berubah
+const CACHE = "simpenlink-v6";   // naikkan angkanya tiap kali daftar ASSETS berubah
 const TIMEOUT = 4000;            // jaringan yang diam selama ini dianggap gagal
 const ASSETS = [
   "./", "index.html", "settings.html", "manifest.json", "recommend.json",
@@ -39,27 +39,31 @@ self.addEventListener("activate", (e) => {
   self.clients.claim();
 });
 
-// Network-first: versi terbaru dulu, cache sebagai cadangan offline.
+// Cache-first + perbarui di belakang (stale-while-revalidate): tampilan langsung muncul dari cache,
+// tanpa menunggu jaringan. Jaringan yang "ada tapi mati" tidak lagi membuat layar putih lama saat offline.
+// Versi terbaru diambil di belakang layar dan dipakai pada pembukaan berikutnya.
 async function handle(e) {
   const req = e.request;
   const cache = await caches.open(CACHE);
-
-  if (navigator.onLine !== false) {   // jelas-jelas offline: langsung ke cache
-    try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), TIMEOUT);
-      const res = await fetch(req, { signal: ctrl.signal });
-      clearTimeout(timer);
-      if (res.ok) {
-        const copy = res.clone();
-        e.waitUntil((async () => cache.put(req, await clean(copy)))());
-      }
-      return res;
-    } catch {}
-  }
-
   const hit = await cache.match(req, { ignoreSearch: true });
-  if (hit) return hit;
+
+  const refresh = (async () => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT);
+    try {
+      const res = await fetch(req, { signal: ctrl.signal, cache: "no-cache" });
+      if (res.ok) await cache.put(req, await clean(res.clone()));
+      return res;
+    } finally {
+      clearTimeout(timer);
+    }
+  })();
+
+  if (hit) {
+    e.waitUntil(refresh.catch(() => {}));
+    return hit;
+  }
+  try { return await refresh; } catch {}
   if (req.mode === "navigate") {
     const page = (await cache.match("./")) || (await cache.match("index.html"));
     if (page) return page;

@@ -1,6 +1,7 @@
 /* data.js — data list & shortcut. Butuh store.js (settings, readJSON). */
 const DATA_KEY = "ShortcutData2";
 const CURRENT_KEY = "ShortcutCurrent";
+const HOME_FID = "home";   // Home = folder tetap (selalu paling kiri, tidak bisa dihapus / diganti nama / dipindah)
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const cmpText = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 // Host tidak peka huruf besar/kecil, path & query tetap (case-sensitive).
@@ -60,8 +61,7 @@ function cleanList(r) {
         name: isDefault ? "Home" : r.name,
         isDefault,
         items: r.items.map(cleanItem).filter(Boolean),
-        isDefault,
-        folderId: typeof r.folderId === "string" ? r.folderId : null,   // BARU
+        folderId: isDefault ? HOME_FID : (typeof r.folderId === "string" ? r.folderId : null),   // list Home selalu di folder Home
     };
 }
 
@@ -89,10 +89,12 @@ function loadLists() {
     if (!Array.isArray(saved)) backupBroken();
     const result = Array.isArray(saved) ? saved.map(cleanList).filter(Boolean) : migrateOld();
     if (!result.some((l) => l.isDefault)) {
-        result.unshift({ id: uid(), name: "Home", isDefault: true, items: [] });
+        result.unshift({ id: uid(), name: "Home", isDefault: true, items: [], folderId: HOME_FID });
     }
-    result.forEach((l) => {   // list tanpa folder (data lama) masuk folder pertama
-        if (!l.isDefault && !folders.some((f) => f.id === l.folderId)) l.folderId = folders[0].id;
+    const fallback = (folders.find((f) => !f.isHome && !f.solo) || folders[0]).id;   // Home hanya kalau belum ada folder lain
+    result.forEach((l) => {   // list tanpa folder (data lama) masuk folder pertama yang biasa
+        if (l.isDefault) l.folderId = HOME_FID;
+        else if (!folders.some((f) => f.id === l.folderId)) l.folderId = fallback;
     });
     return result;
 }
@@ -102,15 +104,14 @@ const FOLDER_KEY = "ShortcutFolders";
 const CURFOLDER_KEY = "ShortcutCurrentFolder";
 const LASTLISTS_KEY = "ShortcutLastLists";   // { idFolder: id list terakhir dibuka }
 
+// Home tidak disimpan di localStorage: selalu dibuat di posisi pertama.
+// solo = "list tersendiri": tombol di baris folder yang isinya satu list, tanpa baris list di atas textbox.
 function loadFolders() {
     const saved = readJSON(FOLDER_KEY);
     const out = (Array.isArray(saved) ? saved : [])
-        .filter((f) => f && typeof f.id === "string" && typeof f.name === "string" && f.name.trim())
-        .map((f) => ({ id: f.id, name: f.name.trim(), added: Number.isFinite(f.added) ? f.added : 0 }));
-    if (!out.length) {
-        out.push({ id: uid(), name: "Main", added: Date.now() });
-        try { localStorage.setItem(FOLDER_KEY, JSON.stringify(out)); } catch {}
-    }
+        .filter((f) => f && typeof f.id === "string" && f.id !== HOME_FID && typeof f.name === "string" && f.name.trim())
+        .map((f) => ({ id: f.id, name: f.name.trim() === "Home" ? "Home (1)" : f.name.trim(), added: Number.isFinite(f.added) ? f.added : 0, solo: f.solo === true }));
+    out.unshift({ id: HOME_FID, name: "Home", added: 0, isHome: true, solo: false });
     return out;
 }
 let folders = loadFolders();
@@ -129,20 +130,15 @@ function ensureCurrent() {
         currentId = findList(saved) ? saved : homeId();
     }
     const cur = findList(currentId);
-    if (cur && !cur.isDefault) currentFolderId = cur.folderId;
-    else if (!findFolder(currentFolderId)) {
-        const sf = localStorage.getItem(CURFOLDER_KEY);
-        currentFolderId = findFolder(sf) ? sf : folders[0].id;
-    }
+    if (cur && findFolder(cur.folderId)) currentFolderId = cur.folderId;   // folder selalu mengikuti list aktif
+    else if (!findFolder(currentFolderId)) currentFolderId = HOME_FID;
 }
 function setCurrent(id) {
     currentId = id;
     const l = findList(id);
-    if (l && !l.isDefault && findFolder(l.folderId)) {   // list biasa: folder & "terakhir dibuka" ikut
+    if (l && findFolder(l.folderId)) {   // folder & "terakhir dibuka" ikut list (Home juga sebuah folder)
         currentFolderId = l.folderId;
         lastLists[l.folderId] = id;
-    } else if (l && l.isDefault && findFolder(currentFolderId)) {
-        lastLists[currentFolderId] = id;                 // BARU: terakhir di Home
     }
     try {
         localStorage.setItem(CURRENT_KEY, id);
@@ -150,13 +146,16 @@ function setCurrent(id) {
         localStorage.setItem(LASTLISTS_KEY, JSON.stringify(lastLists));
     } catch {}
 }
-// Pindah ke folder: Home kalau terakhir di Home, atau sub folder terakhir, atau yang pertama
+// Pindah ke folder: buka list terakhir di folder itu, atau list pertamanya (folder kosong dibuatkan satu list)
 function openFolder(fid) {
     if (!findFolder(fid)) return;
     currentFolderId = fid;
-    const subs = getOrderedLists(fid).filter((l) => !l.isDefault);
-    const last = lastLists[fid];
-    const target = last === homeId() ? null : (subs.find((l) => l.id === last) || subs[0]);
+    let ls = getOrderedLists(fid);
+    if (!ls.length) {
+        const n = addList(uniqueName("New List", fid), fid);
+        if (n) ls = [n];
+    }
+    const target = ls.find((l) => l.id === lastLists[fid]) || ls[0];
     setCurrent(target ? target.id : homeId());
 }
 function reloadState() {
@@ -180,13 +179,14 @@ const findList = (id) => lists.find((l) => l.id === id);
 const findItem = (listId, itemId) => findList(listId)?.items.find((i) => i.id === itemId);
 
 function getOrderedLists(fid = null) {
-    const rest = lists.filter((l) => !l.isDefault && (fid === null || l.folderId === fid));
+    const inFolder = (l) => fid === null || l.folderId === fid;
+    const rest = lists.filter((l) => !l.isDefault && inFolder(l));
     const s = settings.listSort;
     if (s === "az") rest.sort((a, b) => cmpText(a.name, b.name));
     else if (s === "za") rest.sort((a, b) => cmpText(b.name, a.name));
     else if (s === "newest") rest.sort((a, b) => b.added - a.added);
     else if (s === "oldest") rest.sort((a, b) => a.added - b.added);
-    return [...lists.filter((l) => l.isDefault), ...rest];
+    return [...lists.filter((l) => l.isDefault && inFolder(l)), ...rest];   // list Home hanya ada di folder Home
 }
 function sortPinned(rows) {
     if (settings.pinSort === "custom") return rows;
@@ -220,10 +220,11 @@ function hasDuplicate(listId, url, exceptId = null) {
 
 /* ---------- ubah data ---------- */
 const nameTaken = (name, exceptId = null, fid = null) =>
-    lists.some((l) => l.id !== exceptId && l.name === name && (l.isDefault || fid === null || l.folderId === fid));
+    lists.some((l) => l.id !== exceptId && l.name === name && (fid === null || l.folderId === fid));
 function addList(name, fid = currentFolderId) {
     name = name.trim();
     if (!name || nameTaken(name, null, fid)) return null;
+    if (findFolder(fid)?.solo && lists.some((l) => l.folderId === fid)) return null;   // list tersendiri: hanya satu list
     const list = { id: uid(), name, isDefault: false, added: Date.now(), folderId: fid, items: [] };
     lists.push(list);
     saveLists();
@@ -240,8 +241,12 @@ function renameList(id, name) {
 function deleteList(id) {
     const list = findList(id);
     if (!list || list.isDefault) return false;
+    const fid = list.folderId;
     lists = lists.filter((l) => l.id !== id);
-    if (currentId === id) setCurrent(lists.find((l) => l.isDefault).id);
+    if (currentId === id) {   // pindah ke list lain di folder yang sama; folder kosong -> Home
+        const sib = getOrderedLists(fid)[0];
+        setCurrent(sib ? sib.id : homeId());
+    }
     saveLists();
     return true;
 }
@@ -252,31 +257,47 @@ function uniqueFolderName(base) {
     return name;
 }
 function saveFolders() {
-    try { localStorage.setItem(FOLDER_KEY, JSON.stringify(folders)); }
+    try { localStorage.setItem(FOLDER_KEY, JSON.stringify(folders.filter((f) => !f.isHome))); }
     catch { alert("Data gagal disimpan (penyimpanan penuh atau diblokir)."); }
 }
-function addFolder(name) {
+function addFolder(name, solo = false) {
     name = name.trim();
     if (!name || folderNameTaken(name)) return null;
-    const f = { id: uid(), name, added: Date.now() };
+    const f = { id: uid(), name, added: Date.now(), solo };
     folders.push(f);
     saveFolders();
+    return f;
+}
+// "List tersendiri": folder yang isinya satu list bernama sama, tampil sebagai satu tombol di baris folder
+function addSoloFolder(name) {
+    const f = addFolder(name, true);
+    if (!f) return null;
+    if (!addList(f.name, f.id)) {
+        folders = folders.filter((x) => x !== f);
+        saveFolders();
+        return null;
+    }
     return f;
 }
 function renameFolder(id, name) {
     name = name.trim();
     const f = findFolder(id);
     if (!f || !name || name === f.name || folderNameTaken(name, id)) return false;
+    if (f.isHome) return false;
     f.name = name;
+    if (f.solo) {   // list tersendiri: nama list ikut nama tombol
+        const l = lists.find((x) => x.folderId === id && !x.isDefault);
+        if (l) { l.name = name; saveLists(); }
+    }
     saveFolders();
     return true;
 }
 function deleteFolder(id) {
-    if (folders.length <= 1 || !findFolder(id)) return false;
+    if (!findFolder(id) || findFolder(id).isHome) return false;
     folders = folders.filter((f) => f.id !== id);
     lists = lists.filter((l) => l.isDefault || l.folderId !== id);   // isi folder ikut terhapus
     delete lastLists[id];
-    if (currentFolderId === id || !findList(currentId)) openFolder(folders[0].id);
+    if (currentFolderId === id || !findList(currentId)) openFolder(HOME_FID);
     saveLists();
     saveFolders();
     return true;
@@ -349,7 +370,7 @@ function reorderLists(fromIds, toId, fid = currentFolderId) {
     const moving = lists.filter((l) => fromIds.includes(l.id) && !l.isDefault);
     const target = lists.find((l) => l.id === toId && !l.isDefault);
     const dest = target ? target.folderId : fid;
-    if (!moving.length || !findFolder(dest) || moving.some((l) => l.id === toId)) return false;
+    if (!moving.length || !findFolder(dest) || findFolder(dest).solo || moving.some((l) => l.id === toId)) return false;
     const forward = !!target && moving[0].folderId === dest && lists.indexOf(moving[0]) < lists.indexOf(target);
     moving.forEach((l) => {
         if (l.folderId !== dest) l.name = uniqueName(l.name, dest, l.id);   // hindari nama kembar di folder tujuan
@@ -371,11 +392,11 @@ function reorderLists(fromIds, toId, fid = currentFolderId) {
 /* ---------- Urutan & Reorder Folder ---------- */
 function getOrderedFolders() {
     const s = settings.folderSort || "custom";
-    if (s === "custom") return folders; // Kembalikan urutan asli untuk Drag & Drop
-    
+    if (s === "custom") return folders; // Kembalikan urutan asli untuk Drag & Drop (Home selalu pertama)
+
     const isNum = (f) => /^\d/.test(f.name);
     const byName = (a, b) => cmpText(a.name, b.name);
-    let sorted = [...folders];
+    let sorted = folders.filter((f) => !f.isHome);
 
     if (s === "az") sorted.sort(byName);
     else if (s === "za") sorted.sort((a, b) => byName(b, a));
@@ -385,13 +406,13 @@ function getOrderedFolders() {
             isNum(a) !== isNum(b) ? (isNum(a) ? -1 : 1) : dir * byName(a, b)
         );
     }
-    return sorted;
+    return [...folders.filter((f) => f.isHome), ...sorted];
 }
 
 function reorderFolders(fromIds, toId) {
-    const moving = folders.filter((f) => fromIds.includes(f.id));
+    const moving = folders.filter((f) => fromIds.includes(f.id) && !f.isHome);   // Home tidak bisa dipindah
     const target = folders.find((f) => f.id === toId);
-    if (!moving.length || !target || moving.some((f) => f.id === toId)) return false;
+    if (!moving.length || !target || target.isHome || moving.some((f) => f.id === toId)) return false;
 
     const forward = folders.indexOf(moving[0]) < folders.indexOf(target);
     const rest = folders.filter((f) => !moving.includes(f));
@@ -444,6 +465,8 @@ function folderResolver() {
         const old = folders.find((f) => f.name === name);
         let f = old;
         if (!old) f = addFolder(name);
+        else if (old.isHome) f = old;   // Home hanya satu
+        else if (old.solo) f = addFolder(uniqueFolderName(name));   // list tersendiri tidak diisi list lain
         else if (settings.importFolderMode === "new") f = addFolder(uniqueFolderName(name));
         else if (settings.importFolderMode === "overwrite") lists = lists.filter((l) => l.isDefault || l.folderId !== old.id);
         const id = f?.id || currentFolderId;
