@@ -1,377 +1,100 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="id">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#101B25" />
-    <title>MiniSoccer — Arcade Football</title>
-    <link rel="stylesheet" href="style.css" />
-    <script>
-      // Bersihkan Service Worker & Cache dari projek PWA sebelumnya jika ada yang tersisa di port ini
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(regs => {
-          for (const reg of regs) reg.unregister();
-        });
-      }
-      if ('caches' in window) {
-        caches.keys().then(keys => {
-          for (const key of keys) caches.delete(key);
-        });
-      }
-    </script>
-  </head>
-  <body>
-    <div class="site">
-      <main>
-        <section class="menu" id="startScreen" aria-label="Menu utama">
-          <div class="menu-main">
-          <div class="profile-bar">
-            <div class="pts" id="pts">0 POIN</div>
 
-            <button
-              type="button"
-              class="profile-name"
-              id="profileNameBtn"
-              title="Ubah nama pemain"
-            >
-              Player
-            </button>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-            <input
-              type="text"
-              id="profileNameInput"
-              maxlength="16"
-              placeholder="Nama pemain"
-              autocomplete="off"
-              hidden
-            />
-          </div>
-            <div class="topline">
-              <div class="logo">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.2" />
-                  <circle cx="12" cy="12" r="3" fill="currentColor" />
-                </svg>
-                <h1>MINI<span>SOCCER</span></h1>
-              </div>
-            </div>
+  <meta name="google-site-verification" content="yeKXPwgia8Vrfx_k3POxWbb8gxTLX3db5_NfT2pNmjE" />
 
-            <div class="menu-btns">
-              <button class="play primary" id="botModeBtn" type="button">
-                <span>PLAY VS BOT</span><i data-ic="play"></i>
-              </button>
-              <button class="play secondary" id="duoModeBtn" type="button">
-                <span>VS 2 BOT</span>
-              </button>
-              <button class="play secondary" id="friendModeBtn" type="button">
-                <span>PLAY WITH FRIEND</span>
-              </button>
-              <button class="play secondary online-play" id="onlineModeBtn" type="button">
-                <span>PLAY ONLINE 1 VS 1</span>
-              </button>
+  <title>Simpen.Link</title>
+  <link rel="icon" type="image/svg+xml" href="Image/LOGO.svg">
 
-              <button class="play secondary lg" id="leagueModeBtn" type="button"><span>LEAGUE</span></button>
-              <button class="play tertiary" id="customModeBtn" type="button"><span>CUSTOM</span></button>
-              <button class="play tertiary" id="skillsModeBtn" type="button"><span>DAFTAR SKILL</span></button>
-            </div>
-            <div class="menu-foot">
-              <div class="menu-audio" id="audioSlotMenu">
-                <div class="audio" id="audio">
-                  <button
-                    class="btn sq"
-                    id="soundBtn"
-                    type="button"
-                    aria-label="Efek suara"
-                    title="Efek suara"
-                  ></button>
-                  <button
-                    class="btn sq"
-                    id="musicBtn"
-                    type="button"
-                    aria-label="Musik latar"
-                    title="Musik latar"
-                    data-ic="music"
-                  ></button>
-                </div>
-              </div>
-              <details class="hist">
-                <summary>Rekor &amp; riwayat</summary>
-                <div class="history" id="historyBox"></div>
-              </details>
-            </div>
-          </div>
-          <svg class="menu-pitch" viewBox="0 0 600 380" aria-hidden="true">
-            <rect width="600" height="380" fill="#1a8449" />
-            <g fill="#1d8f52">
-              <rect x="60" width="60" height="380" />
-              <rect x="180" width="60" height="380" />
-              <rect x="300" width="60" height="380" />
-              <rect x="420" width="60" height="380" />
-              <rect x="540" width="60" height="380" />
-            </g>
-            <g fill="none" stroke="#F3F0E7" stroke-width="4">
-              <rect x="20" y="20" width="560" height="340" />
-              <path d="M300 20v340" />
-              <circle cx="300" cy="190" r="55" />
-              <rect x="20" y="100" width="80" height="180" />
-              <rect x="500" y="100" width="80" height="180" />
-              <rect x="0" y="150" width="20" height="80" />
-              <rect x="580" y="150" width="20" height="80" />
-            </g>
-            <circle cx="300" cy="190" r="5" fill="#F3F0E7" />
-            <g fill="#FFD166">
-              <circle cx="250" cy="224" r="3" />
-              <circle cx="268" cy="215" r="3.6" />
-              <circle cx="285" cy="206" r="4.2" />
-            </g>
-            <circle cx="170" cy="250" r="26" fill="#3286F6" stroke="#F3F0E7" stroke-width="3" />
-            <circle cx="440" cy="140" r="26" fill="#EF5354" stroke="#F3F0E7" stroke-width="3" />
-            <circle cx="306" cy="196" r="12" fill="#fff" stroke="#101B25" stroke-width="2.5" />
-          </svg>
-        </section>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#7fb3ff">
+  <link rel="apple-touch-icon" href="Image/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
 
-        
-        <section class="online-screen" id="onlineScreen" hidden>
-          <div class="online-panel">
+  <meta name="description" content="Simpan dan atur shortcut website favoritmu. Tanpa akun, data tersimpan di perangkatmu.">
+  <meta property="og:title" content="Simpen.Link">
+  <meta property="og:description" content="Simpan dan atur shortcut website favoritmu. Tanpa akun.">
+  <meta property="og:image" content="Image/icon-512.png">
 
-            <button class="btn" id="onlineBackBtn" type="button">
-              ← MENU
-            </button>
+  <script>try{var t=JSON.parse(localStorage.getItem("ShortcutSettings")).theme;if(t==="dark"||t==="light")document.documentElement.dataset.theme=t}catch(e){}</script>
 
-            <div class="online-heading">
-              <h2>ONLINE MATCH</h2>
-              <p>Play against your friend anywhere.</p>
-            </div>
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="layout.css">
+  <link rel="stylesheet" href="spotlight.css">
+</head>
 
-            <!-- Pilihan Create dan Join -->
-            <div class="online-actions" id="onlineActions">
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
+  }
+</script>
 
-              <button class="online-create" id="makeRoomBtn" type="button">
-                <span>＋</span>
-                <b>CREATE ROOM</b>
-                <small>Buat room baru</small>
-              </button>
-
-              <div class="online-join">
-                <label for="joinCodeInput">ROOM CODE</label>
-
-                <input
-                  type="text"
-                  id="joinCodeInput"
-                  placeholder="MASUKKAN KODE"
-                  maxlength="8"
-                  autocomplete="off"
-                />
-
-                <button class="btn btn-primary" id="joinRoomBtn" type="button">
-                  JOIN ROOM →
-                </button>
-              </div>
-
-            </div>
-
-            <!-- Lobby setelah room berhasil dibuat atau dimasuki -->
-            <div class="online-lobby" id="onlineLobby" hidden>
-
-              <div class="room-code-card">
-                <span>ROOM CODE</span>
-                <strong id="roomCodeText">--------</strong>
-
-                <button class="btn" id="copyRoomCodeBtn" type="button">
-                  COPY
-                </button>
-              </div>
-
-              <div class="online-players">
-
-                <div class="online-player blue-player">
-                  <small>BLUE TEAM</small>
-                  <b id="onlineBlueName">Player</b>
-                  <span>HOST</span>
-                </div>
-
-                <div class="online-vs">VS</div>
-
-                <div class="online-player red-player">
-                  <small>RED TEAM</small>
-                  <b id="onlineRedName">Waiting...</b>
-                  <span>GUEST</span>
-                </div>
-
-              </div>
-
-              <p class="online-status" id="onlineStatus">
-                Menunggu pemain...
-              </p>
-
-              <button
-                class="btn btn-primary big"
-                id="onlineStartBtn"
-                type="button"
-                hidden
-              >
-                START MATCH ▶
-              </button>
-
-            </div>
-
-            <p class="online-error" id="onlineError" role="status"></p>
-
-          </div>
-        </section>
-
-
-        <section class="league" id="leagueScreen" hidden aria-label="Mode liga">
-          <div class="lg-inner">
-            <header class="lg-head">
-              <button class="btn" id="lgBack" type="button">← MENU</button>
-              <div>
-                <h2 id="lgTitle">LIGA</h2>
-                <span id="lgSub"></span>
-              </div>
-            </header>
-            <p class="lg-info" id="lgInfo"></p>
-            <div class="lg-grid">
-              <div class="lg-tablewrap"><table class="lg-tbl" id="lgTable"></table></div>
-              <aside class="lg-side">
-                <div id="lgNext"></div>
-                <h3 class="grp">Hasil terakhir</h3>
-                <div id="lgLast"></div>
-              </aside>
-            </div>
-          </div>
-        </section>
-
-        <section class="custom" id="customScreen" hidden aria-label="Mode custom">
-          <div class="cbox">
-            <h2>CUSTOM MATCH</h2>
-            <div id="cform"></div>
-            <div class="cact">
-              <button class="btn" id="cBack" type="button">← KEMBALI</button>
-              <button class="btn" id="cReset" type="button">RESET</button>
-              <button class="btn btn-primary" id="cStart" type="button">MULAI ▶</button>
-            </div>
-          </div>
-        </section>
-
-        <section class="skills-screen" id="skillsScreen" hidden aria-label="Daftar skill">
-          <div class="sks-box">
-            <header class="sks-head">
-              <button class="btn" id="skillsBack" type="button">← MENU</button>
-              <h2>DAFTAR SKILL</h2>
-            </header>
-            <p class="sks-info">Tiap pemain mendapat skill acak di awal pertandingan. Berikut semua skill dan fungsinya.</p>
-            <input type="search" id="skillsFind" placeholder="Cari skill..." autocomplete="off" />
-            <div class="sks-grid" id="skillsGrid"></div>
-          </div>
-        </section>
-
-        <section class="game-shell" id="gameShell" aria-label="Permainan MiniSoccer" hidden>
-          <header class="hud">
-            <div class="board" id="board" aria-label="Papan skor">
-              <div class="bg">
-                <div class="fill b"></div>
-                <div class="fill r"></div>
-                <div class="shine"></div>
-              </div>
-              <span class="name l" id="nameBlue">YOU</span>
-              <div class="mid">
-                <b class="score" id="scoreBlue">0</b><i>-</i><b class="score" id="scoreOrange">0</b>
-              </div>
-              <span class="name r" id="nameRed">BOT</span>
-            </div>
-            <div class="timebar"><span id="timer">00:00</span></div>
-          </header>
-          <span class="status" aria-live="polite" id="gameStatus">Pertandingan berlangsung</span>
-          <p class="rotate-hint">Putar perangkat ke landscape agar lapangan lebih besar.</p>
-
-          <div class="stage">
-            <nav class="toolbar" aria-label="Menu permainan">
-              <button class="btn sq" id="pauseBtn" type="button" title="Jeda (P)" aria-label="Jeda"></button>
-              <button
-                class="btn sq"
-                id="newMatchBtn"
-                type="button"
-                title="Match baru"
-                aria-label="Match baru"
-                data-ic="reset"
-              ></button>
-              <button
-                class="btn sq"
-                id="fsBtn"
-                type="button"
-                title="Layar penuh"
-                aria-label="Layar penuh"
-                data-ic="full"
-              ></button>
-              <div class="slot" id="audioSlotGame"></div>
-              <button
-                class="btn sq exit"
-                id="backMenuBtn"
-                type="button"
-                title="Kembali ke menu"
-                aria-label="Kembali ke menu"
-                data-ic="back"
-              ></button>
-            </nav>
-
-            <div class="field-wrap" id="field">
-              <canvas
-                id="pitch"
-                width="900"
-                height="560"
-                aria-label="Lapangan MiniSoccer. Pemain biru di kiri dan pemain merah di kanan."
-              ></canvas>
-              <div class="goal-celebration" id="goalCelebration" hidden aria-label="Selebrasi gol">
-                <span class="goal-title" id="goalTitle"></span>
-              </div>
-              <div class="endcard draw" id="endCard" hidden>
-                <div class="end-box">
-                  <p class="eyebrow">FULL TIME</p>
-                  <h2 id="endTitle"></h2>
-                  <div class="end-score" id="endScore"></div>
-                  <div id="endStats"></div>
-                  <div class="end-actions">
-                    <button class="btn btn-primary big" id="rematchBtn" type="button">REMATCH</button>
-                    <button class="btn" id="endMenuBtn" type="button">MAIN MENU</button>
-                  </div>
-                  <button class="link-btn" id="statsToggleBtn" type="button" aria-expanded="false" aria-controls="matchStats">Lihat statistik pertandingan</button>
-                  <div class="match-stats" id="matchStats" hidden></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="below" id="below">
-            <button type="button" class="skill-btn sk-desk" data-skill-btn="0" hidden></button>
-            <button type="button" class="skill-btn sk-desk" data-skill-btn="2" hidden></button>
-            <div class="controls" id="controlsInfo"></div>
-            <button type="button" class="skill-btn sk-desk" data-skill-btn="3" hidden></button>
-            <button type="button" class="skill-btn sk-desk" data-skill-btn="1" hidden></button>
-          </div>
-
-          <div class="mobile-controls" id="mobileControls" aria-label="Kontrol layar sentuh">
-            <div data-player="0">
-              <div class="pad-heading" style="color: var(--blue)">P1 · BIRU</div>
-              <div class="stick" data-p="0"><div class="knob"></div></div>
-              <button type="button" class="skill-btn sk-pad" data-skill-btn="0" hidden></button>
-            </div>
-            <div data-player="1">
-              <div class="pad-heading" style="color: var(--red)">P2 · MERAH</div>
-              <div class="stick" data-p="1"><div class="knob"></div></div>
-              <button type="button" class="skill-btn sk-pad" data-skill-btn="1" hidden></button>
-              <button type="button" class="skill-btn sk-pad" data-skill-btn="2" hidden></button>
-            </div>
-          </div>
-        </section>
-      </main>
+<body class="page-home">
+  <div id="app-scale">
+    <div class="simple-top">
+      <button type="button" id="view-toggle" class="bulk-btn bulk-cancel">Lengkap</button>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="game.js"></script>
-    <script src="stats.js"></script>
-    <script src="skills.js"></script>
-    <script src="achievements.js"></script>
-    <script src="bot.js"></script>
-    <script src="online.js"></script>
-  </body>
+
+    <div class="textbox-wrapper mode-link">
+      <div class="textbox-inner">
+        <button type="button" class="copy" aria-label="Salin teks"><img src="Image/copy.svg" alt=""></button>
+        <div class="LV1"></div>
+        <button type="button" class="cancel" aria-label="Hapus teks"><img src="Image/cancel.svg" alt=""></button>
+        <input class="main" type="text" placeholder="Add Shortcut..." aria-label="Input" autofocus>
+        <div class="LV"></div>
+        <div class="mode-icon-box" role="button" aria-label="Ganti mode / kirim">
+          <img class="mode-icon" src="Image/link.svg" alt="">
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="more" aria-label="Menu lainnya"><img src="Image/more.svg" alt=""></button>
+
+    <div class="field a-name-field">
+      <input type="text" class="a-name" placeholder="Add Name..." aria-label="Nama">
+    </div>
+    <div class="field a-note-field">
+      <textarea class="a-note" placeholder="Add Note..." aria-label="Catatan"></textarea>
+    </div>
+
+    <div class="List"></div>
+
+    <div class="bottom-fade"></div>
+    <div class="shortcuts-grid"></div>
+    <input type="file" id="import-file-input" accept=".json,.html,.htm,application/json,text/html" style="display: none;">
+  </div>
+
+  <div class="bar">
+    <div class="bar-top"> 
+      <div class="bar-group" id="bar-home">
+        <button id="more-import" class="bar-item bulk-btn bulk-export">Import</button>
+        <button id="more-settings" class="bar-item bulk-btn bulk-cancel">Settings</button>
+        <button id="more-count" class="bar-item bulk-btn bulk-edit" aria-label="Pilih semua shortcut di list ini">0</button>
+        <button id="more-simple" class="bar-item bulk-btn bulk-export">Simpel</button>
+        <button id="more-info" class="bar-item bulk-btn bulk-cancel" aria-label="Info"><img src="Image/info.svg" alt=""></button>
+      </div>
+
+      <div class="bar-group bar-hide" id="bar-select">
+        <span id="bulk-count" class="bar-item bar-hide">0 selects</span>
+        <button id="bulk-delete" class="bar-item bar-hide bulk-btn bulk-delete">Delete</button>
+        <button id="bulk-edit" class="bar-item bar-hide bulk-btn bulk-edit" aria-label="Edit"><img src="Image/edit.svg" alt=""></button>
+        <button id="bulk-pin" class="bar-item bar-hide bulk-btn bulk-pin" aria-label="Pin"><img src="Image/pin.svg" alt=""></button>
+        <button id="bulk-export" class="bar-item bar-hide bulk-btn bulk-export">Export</button>
+        <button id="bulk-cancel" class="bar-item bar-hide bulk-btn bulk-cancel">X</button>
+      </div>
+    </div>
+    <div class="folder-row" id="folder-row"></div>
+  </div>
+
+  <script src="store.js"></script>
+  <script src="data.js"></script>
+  <script src="system.js"></script>
+  <script src="spotlight.js"></script>
+  <script src="backup.js"></script>
+</body>
+
 </html>
