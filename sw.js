@@ -1,4 +1,4 @@
-const CACHE = "simpenlink-v6";   // naikkan angkanya tiap kali daftar ASSETS berubah
+const CACHE = "simpenlink-v8";   // naikkan angkanya tiap kali daftar ASSETS berubah
 const TIMEOUT = 4000;            // jaringan yang diam selama ini dianggap gagal
 const ASSETS = [
   "./", "index.html", "settings.html", "manifest.json", "recommend.json",

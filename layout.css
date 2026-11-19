@@ -325,3 +325,41 @@ html, body { height: 100%; margin: 0; }
 
 .List { user-select: none; }
 .List.grabbing, .List.grabbing button { cursor: grabbing; }
+
+/* ---------- Mode Simpel ---------- */
+.simple-top { display: none; }
+
+body.simple .bar,
+body.simple .List { display: none !important; }
+
+body.simple {
+  --grid-margin: 64px 30px 0 30px;
+  --m-grid-top: 56px;
+  --m-grid-pad-bottom: calc(var(--textbox-bottom) + var(--textbox-h) + 24px);
+}
+
+body.simple .simple-top {
+  display: flex;
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  pointer-events: none;
+}
+#view-toggle { position: absolute; right: 12px; top: 12px; pointer-events: auto; }
+
+/* bar A–Z: bisa digeser + gelembung huruf */
+.az-bar { touch-action: none; }
+.az-bubble {
+  position: fixed; right: 48px; top: 50%; transform: translateY(-50%);
+  z-index: 7; min-width: 56px; height: 56px; padding: 0 12px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 14px; background: var(--c-blue); color: var(--c-navy);
+  font-size: 28px; font-weight: bold; box-shadow: 0 4px 10px rgba(18, 58, 99, 0.3);
+  pointer-events: none;
+}
+.az-bubble[hidden] { display: none; }
+body.simple .az-bar { max-height: calc(100dvh - 130px); }
+body.simple .az-btn { width: 26px; font-size: 11px; }

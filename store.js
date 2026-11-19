@@ -122,6 +122,8 @@ const EN = {
   // Settings
   "Bahasa / Language": "Bahasa / Language",
   "Tampilan": "Display",
+  "Lengkap": "Full",
+  "Simpel": "Simple",
   "Aktif": "On",
   "Nonaktif": "Off",
   "Urutan Shortcut": "Shortcut Order",

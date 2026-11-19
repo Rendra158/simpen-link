@@ -134,7 +134,7 @@ const modes = [
             const url = parseUrl(v);
             if (!url) { alert("URL tidak valid."); return false; }
             const fields = { name: nameInput.value.trim() || nameFromUrl(url), url, note: noteInput.value.trim() };
-            const listId = currentId;
+            const listId = isSimple() ? homeId() : currentId;
             if (settings.allowDuplicate === "off" && hasDuplicate(listId, url)) {
                 alert("Shortcut dengan URL ini sudah ada di list.");
                 return false;
@@ -148,6 +148,19 @@ const modes = [
 ];
 
 const mode = () => modes[modeIndex];
+
+/* ---------- mode simpel ---------- */
+const SIMPLE_KEY = "ShortcutSimple";
+let simpleView = localStorage.getItem(SIMPLE_KEY) === "1";
+const isSimple = () => simpleView;
+const curBy = () => (isSimple() ? "all" : searchBy);   // simpel: cari di nama + URL + note
+const applyView = () => document.body.classList.toggle("simple", isSimple());
+function setView(v) {
+    simpleView = v === "simple";
+    try { localStorage.setItem(SIMPLE_KEY, simpleView ? "1" : "0"); } catch {}
+    applyView();
+    setMode(0);
+}
 
 /* ---------- pilihan pencarian ---------- */
 const SEARCH_OPTS = [["name", "Nama"], ["url", "URL"], ["note", "Note"], ["list", "List"]];
@@ -179,7 +192,7 @@ function submitOrNextMode() {
     const v = textbox.value.trim();
     if (mode().id === "search") {
         // search List: Enter memilih list yang cocok (1 list = buka list itu juga)
-        const ids = searchBy === "list" ? matchedLists(v.toLowerCase()).map((l) => l.id) : [];
+        const ids = curBy() === "list" ? matchedLists(v.toLowerCase()).map((l) => l.id) : [];
         textbox.value = "";
         if (ids.length) {
             if (ids.length === 1) setCurrent(ids[0]);
@@ -764,6 +777,7 @@ function askChoice(title, choices) {
 
 // skor kecocokan: makin besar makin sesuai (0 = tidak cocok)
 function matchScore({ name, url, note }, q, by) {
+    if (by === "all") return Math.max(...["name", "url", "note"].map((k) => matchScore({ name, url, note }, q, k)));
     if (by === "list") return 1;   // list sudah disaring di renderSearch
     const text = (by === "url" ? url.replace(/^https?:\/\/(www\.)?/i, "") : by === "note" ? note : name).toLowerCase();
     if (text === q) return 5;
@@ -777,15 +791,16 @@ function renderSearch() {
         const fo = findFolder(l.folderId);
         return l.isDefault || !fo ? l.name : fo.solo ? fo.name : `${fo.name}/${l.name}`;
     };
+    const by = curBy();
     const q = textbox.value.trim().toLowerCase();
     if (!q) { gridEl.replaceChildren(); return; }   // belum mengetik: kosong
     const rows = getOrderedLists()
-        .filter((list) => searchBy !== "list" || list.name.toLowerCase().includes(q))
-        .flatMap((list) => list.items.map((item) => ({ item, list, s: matchScore(item, q, searchBy) })))
+        .filter((list) => by !== "list" || list.name.toLowerCase().includes(q))
+        .flatMap((list) => list.items.map((item) => ({ item, list, s: matchScore(item, q, by) })))
         .filter((r) => r.s > 0)
         .sort((a, b) => (b.item.pinned ? 1 : 0) - (a.item.pinned ? 1 : 0) || b.s - a.s);   // pin dulu, lalu skor
     gridEl.replaceChildren(...(rows.length
-        ? rows.map(({ item, list }) => makeCard(item, list.id, listLabel(list)))
+        ? rows.map(({ item, list }) => makeCard(item, list.id, isSimple() ? null : listLabel(list)))
         : [h("div", { class: "shortcuts-empty", text: "Tidak ada yang cocok." })]));
 }
 
@@ -904,9 +919,37 @@ const equalizeLater = () => requestAnimationFrame(equalizeRows);
 window.addEventListener("resize", equalizeLater);
 document.fonts?.ready.then(equalizeLater);
 
+// mode simpel: semua shortcut dari semua list jadi satu daftar (pin dulu, lalu A–Z / 0–9)
+function simpleRows() {
+    const rows = lists.flatMap((l) => l.items.map((item) => ({ item, listId: l.id })));
+    const num = (r) => /^\d/.test(r.item.name);
+    const cmp = (dir) => (a, b) => num(a) !== num(b) ? (num(a) ? 1 : -1) : dir * cmpText(a.item.name, b.item.name);
+    const s = settings.shortcutSort;
+    const pins = rows.filter((r) => r.item.pinned);
+    const rest = rows.filter((r) => !r.item.pinned);
+    if (s === "newest") rest.sort((a, b) => b.item.added - a.item.added);
+    else if (s === "oldest") rest.sort((a, b) => a.item.added - b.item.added);
+    else rest.sort(cmp(s === "za" ? -1 : 1));   // custom = A–Z lalu 0–9
+    return [...(settings.pinSort === "custom" ? pins.sort(cmp(1)) : sortPinned(pins)), ...rest];
+}
+
+function renderSimple() {
+    if (inlineEdit && !findItem(inlineEdit.listId, inlineEdit.itemId)) inlineEdit = null;
+    const rows = simpleRows();
+    gridEl.replaceChildren(...(rows.length
+        ? rows.map(({ item, listId }) => inlineEdit && inlineEdit.itemId === item.id ? makeEditCard(item, listId) : makeCard(item, listId))
+        : [h("div", { class: "shortcuts-empty", text: "Belum ada shortcut." })]));
+    updateSelectionUI();
+    fitEditing();
+    fitAllNotes();
+    equalizeLater();
+    renderIndex();
+}
+
 function renderShortcuts() {
     updateCount();
     if (mode().id === "search") { inlineEdit = null; renderSearch(); updateSelectionUI(); renderIndex(); return; }
+    if (isSimple()) { renderSimple(); return; }
     if (inlineEdit && (inlineEdit.listId !== currentId || !findItem(inlineEdit.listId, inlineEdit.itemId))) inlineEdit = null;
     const list = findList(currentId);
     const rows = sortItems(list.items.map((item) => ({ item })));
@@ -1319,6 +1362,7 @@ gridEl.addEventListener("contextmenu", (e) => {
     if (!card || !mode().editable) return;   // mode search: tanpa seleksi/edit
     e.preventDefault();
     if (inlineEdit) return;                  // sedang edit: klik kanan tidak mengubah seleksi
+    if (isSimple()) { startInlineEdit(findItem(card.dataset.list, card.dataset.id), card.dataset.list); return; }   // simpel: klik kanan = edit
 
     const now = Date.now();
     const itemId = card.dataset.id;
@@ -1514,7 +1558,7 @@ gridEl.addEventListener("dragstart", (e) => {
     }
 
     const card = cardOf(e);
-    if (!card || !mode().editable) { e.preventDefault(); return; }
+    if (!card || !mode().editable || isSimple()) { e.preventDefault(); return; }
 
     // Jika shortcut yang di-drag sedang terseleksi, drag semua shortcut yang terseleksi
     const itemIds = selectedShortcuts.has(card.dataset.id) ? Array.from(selectedShortcuts) : [card.dataset.id];
@@ -1655,15 +1699,15 @@ function scrollerOf(el) {
 }
 const firstCard = () => gridEl.querySelector(".shortcut-box:not(.reco)");
 
-function jumpTo(card) {
+function jumpTo(card, behavior = "smooth") {
     const sc = scrollerOf(card);
     const top = sc.scrollTop + card.getBoundingClientRect().top - sc.getBoundingClientRect().top;
-    sc.scrollTo({ top: Math.max(0, top - 8), behavior: "smooth" });
+    sc.scrollTo({ top: Math.max(0, top - 8), behavior });
 }
 
 function renderIndex() {
     const cards = [...gridEl.querySelectorAll(".shortcut-box:not(.reco)")];
-    const custom = settings.shortcutSort === "custom";
+    const custom = settings.shortcutSort === "custom" && !isSimple();   // simpel: custom = A–Z, tombol huruf tetap ada
     const show = mode().id !== "search" && cards.length > 0;
     document.body.classList.toggle("has-az", show);
     indexBar.hidden = !show;
@@ -1701,13 +1745,38 @@ indexBar.addEventListener("click", (e) => {
     } else if (azFirst[k]?.isConnected) jumpTo(azFirst[k]);
 });
 
+// geser jari/mouse di bar A–Z: langsung lompat ke huruf yang dilewati, dengan gelembung huruf
+const bubble = h("div", { class: "az-bubble" });
+bubble.hidden = true;
+document.body.append(bubble);
+let scrubbing = false;
+function scrubTo(e) {
+    const b = document.elementFromPoint(e.clientX, e.clientY)?.closest(".az-btn");
+    if (!b || !indexBar.contains(b) || b.disabled) return;
+    const k = b.dataset.k;
+    bubble.textContent = k === "__top" ? "▲" : k === "__bottom" ? "▼" : k;
+    bubble.hidden = false;
+    if (k === "__top" || k === "__bottom") {
+        const sc = scrollerOf(firstCard());
+        sc.scrollTo({ top: k === "__top" ? 0 : sc.scrollHeight, behavior: "auto" });
+    } else if (azFirst[k]?.isConnected) jumpTo(azFirst[k], "auto");
+}
+indexBar.addEventListener("pointerdown", (e) => { scrubbing = true; indexBar.setPointerCapture(e.pointerId); scrubTo(e); });
+indexBar.addEventListener("pointermove", (e) => { if (scrubbing) scrubTo(e); });
+const endScrub = () => { scrubbing = false; bubble.hidden = true; };
+indexBar.addEventListener("pointerup", endScrub);
+indexBar.addEventListener("pointercancel", endScrub);
+
 /* ---------- mulai ---------- */
 function applyGridPrefs() {
     gridEl.dataset.cols = settings.gridCols;
     gridEl.dataset.fit = settings.cardHeight;
+    applyView();
     equalizeLater();
 }
 
+document.querySelector("#more-simple").addEventListener("click", () => setView("simple"));
+document.querySelector("#view-toggle").addEventListener("click", () => setView("full"));
 applyGridPrefs();
 navigator.storage?.persist?.();
 mountAccountPicker();
@@ -2007,6 +2076,10 @@ setMode(0);
         if (e.touches.length !== 1 || !el || !mode().editable || e.target.closest(".note-toggle, .rename-input, .list-tag, .shortcut-box.editing")) return;
         startPt = { x: e.touches[0].clientX, y: e.touches[0].clientY };
         pending = { kind: el.matches(".pin-card") ? "pin" : el.matches(".shortcut-box") ? "item" : el.matches(SEL_FOLDER) ? "folder" : "list", el };
+        if (isSimple()) {   // simpel: tahan sebentar = langsung edit
+            if (pending.kind === "item") editTimer = setTimeout(() => { held = true; onEditHold(); }, HOLD);
+            return;
+        }
         timer = setTimeout(onHold, HOLD);
         if (pending.kind === "item") editTimer = setTimeout(onEditHold, EDIT_HOLD_TOUCH_MS);   // tahan terus = edit
     }, { passive: true });
@@ -2014,7 +2087,7 @@ setMode(0);
     document.addEventListener("touchmove", (e) => {
         const t = e.touches[0];
         if (!held) {
-            if (timer && Math.hypot(t.clientX - startPt.x, t.clientY - startPt.y) > MOVE) {
+            if ((timer || editTimer) && Math.hypot(t.clientX - startPt.x, t.clientY - startPt.y) > MOVE) {
                 clearTimeout(timer);
                 clearTimeout(editTimer);
                 timer = null;
